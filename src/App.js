@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+port React, { useState, useEffect, useRef } from 'react';
 // - Palette -
 const T = {
   bg: '#faf6f0',
@@ -1880,6 +1880,7 @@ function Onboarding({ onComplete }) {
     <div
       style={{
         minHeight: '100vh',
+        zoom:"120%",
         background: T.bg,
         display: 'flex',
         flexDirection: 'column',
