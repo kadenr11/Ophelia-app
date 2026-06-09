@@ -257,18 +257,127 @@ select option{background:#fff;color:#1a1208;}
 @media(min-width:601px) and (max-width:900px){
   .cal-max{max-width:700px!important;}
 }
+body.modal-open{overflow:hidden;position:fixed;width:100%;}
+.overlay-inner{overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.modal-card{overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:90vh;}
 `;
 
 // ─── Small reusable atoms ────────────────────────────────────────────────────
 const Label = ({children,color=T.text3})=>(
   <div style={{fontSize:'11px',letterSpacing:'0.14em',color,textTransform:'uppercase',marginBottom:'7px',fontWeight:600}}>{children}</div>
 );
-const Overlay = ({onClose,zIndex=200,children})=>(
-  <div className="overlay-inner" style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex,padding:'20px',backdropFilter:'blur(4px)'}} onClick={onClose}>{children}</div>
-);
+function Overlay({onClose,zIndex=200,children}) {
+  useEffect(()=>{
+    document.body.classList.add('modal-open');
+    return()=>document.body.classList.remove('modal-open');
+  },[]);
+  return(
+    <div className="overlay-inner" style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.45)',display:'flex',alignItems:'flex-start',justifyContent:'center',zIndex,padding:'20px',backdropFilter:'blur(4px)'}} onClick={onClose}>
+      {children}
+    </div>
+  );
+}
 const Card = ({children,style={}})=>(
-  <div className="modal-card" onClick={e=>e.stopPropagation()} style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'clamp(18px,4vw,28px)',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',...style}}>{children}</div>
+  <div className="modal-card" onClick={e=>e.stopPropagation()} style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'clamp(18px,4vw,28px)',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',marginTop:'auto',marginBottom:'auto',...style}}>{children}</div>
 );
+
+// ─── AddressInput — autocomplete + GPS ───────────────────────────────────────
+const MAPS_KEY = 'YOUR_GOOGLE_MAPS_KEY'; // replace with your key to enable autocomplete
+
+function AddressInput({value, onChange, placeholder='Enter address...',style}) {
+  const [suggestions, setSuggestions] = useState([]);
+  const [showDrop,    setShowDrop]    = useState(false);
+  const [gpsLoading,  setGpsLoading]  = useState(false);
+  const debounce = useRef(null);
+
+  function handleType(e) {
+    const v = e.target.value;
+    onChange(v);
+    clearTimeout(debounce.current);
+    if(!v||v.length<3){setSuggestions([]);return;}
+    debounce.current = setTimeout(()=>fetchSuggestions(v), 300);
+  }
+
+  async function fetchSuggestions(input) {
+    // Google Places Autocomplete — works once MAPS_KEY is set
+    if(MAPS_KEY==='YOUR_GOOGLE_MAPS_KEY'||!window.google) {
+      // Fallback: no live suggestions, plain text only
+      setSuggestions([]);
+      return;
+    }
+    try {
+      const svc = new window.google.maps.places.AutocompleteService();
+      svc.getPlacePredictions({input, types:['address']}, (preds, status)=>{
+        if(status==='OK'&&preds) setSuggestions(preds.map(p=>p.description));
+        else setSuggestions([]);
+      });
+    } catch { setSuggestions([]); }
+  }
+
+  function pickSuggestion(s) {
+    onChange(s);
+    setSuggestions([]);
+    setShowDrop(false);
+  }
+
+  function useGPS() {
+    if(!navigator.geolocation){alert('Location not available on this device.');return;}
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(async pos=>{
+      const {latitude:lat,longitude:lng} = pos.coords;
+      // Reverse geocode via Google if key set, otherwise show coords
+      if(MAPS_KEY!=='YOUR_GOOGLE_MAPS_KEY') {
+        try {
+          const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${MAPS_KEY}`);
+          const data = await res.json();
+          const addr = data.results?.[0]?.formatted_address;
+          if(addr) { onChange(addr); setGpsLoading(false); return; }
+        } catch {}
+      }
+      onChange(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+      setGpsLoading(false);
+    }, ()=>{alert('Could not get your location. Please type it in.');setGpsLoading(false);},{timeout:8000});
+  }
+
+  return(
+    <div style={{position:'relative'}}>
+      <div style={{display:'flex',gap:'8px'}}>
+        <input
+          value={value}
+          onChange={handleType}
+          onFocus={()=>setShowDrop(true)}
+          onBlur={()=>setTimeout(()=>setShowDrop(false),180)}
+          placeholder={placeholder}
+          style={{...IS({flex:1,width:'auto'},...(style||{}))}}
+        />
+        <button
+          type="button"
+          onClick={useGPS}
+          title="Use my current location"
+          style={{flexShrink:0,background:'#fff',border:`1px solid ${T.border}`,borderRadius:'10px',padding:'0 12px',cursor:'pointer',color:gpsLoading?T.text4:T.sky,fontSize:'16px',display:'flex',alignItems:'center',justifyContent:'center'}}
+        >
+          {gpsLoading
+            ? <span style={{fontSize:'11px',color:T.text4}}>...</span>
+            : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" strokeDasharray="2 3"/></svg>
+          }
+        </button>
+      </div>
+      {showDrop&&suggestions.length>0&&(
+        <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',boxShadow:'0 8px 32px rgba(0,0,0,0.12)',zIndex:9999,marginTop:'4px',overflow:'hidden'}}>
+          {suggestions.map((s,i)=>(
+            <div key={i} onMouseDown={()=>pickSuggestion(s)} style={{padding:'11px 14px',fontSize:'13px',color:T.text2,borderBottom:i<suggestions.length-1?`1px solid ${T.border}`:'none',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center'}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.text4} strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
+      {MAPS_KEY==='YOUR_GOOGLE_MAPS_KEY'&&value.length===0&&(
+        <div style={{fontSize:'10px',color:T.text4,marginTop:'4px'}}>GPS works now · add Google Maps key for address suggestions</div>
+      )}
+    </div>
+  );
+}
 
 // ─── TzSelect ────────────────────────────────────────────────────────────────
 function TzSelect({value,onChange,style}) {
@@ -592,7 +701,7 @@ function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,on
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,marginBottom:'20px',fontWeight:600}}>{event?.id?'Edit Event':'New Event'}</div>
         <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
           <input placeholder="Event title..." value={title} onChange={e=>setTitle(e.target.value)} style={IS()} />
-          <input placeholder="Location (optional — enables traffic alerts)" value={location} onChange={e=>setLocation(e.target.value)} style={IS()} />
+          <AddressInput value={location} onChange={setLocation} placeholder="Location (optional — enables traffic alerts)" />
           <div style={{display:'flex',gap:'10px'}}>
             <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={IS({flex:1,width:'auto'})} />
             <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={IS({flex:1,width:'auto'})} />
@@ -806,7 +915,7 @@ function GiftModal({partnerName,onClose}) {
         </div>
 
         <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-          <div><Label>Delivery address for {partnerName}</Label><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Street, city, state, zip..." style={IS()}/></div>
+          <div><Label>Delivery address for {partnerName}</Label><AddressInput value={address} onChange={setAddress} placeholder="Street, city, state, zip..." /></div>
           <div><Label>Deliver on</Label><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={IS()}/></div>
           <div><Label>Personal note</Label><textarea value={note} onChange={e=>setNote(e.target.value)} onClick={e=>e.stopPropagation()} placeholder="Write them something..." rows={3} style={IS({resize:'none'})}/></div>
 
@@ -1373,7 +1482,7 @@ function Onboarding({onComplete}) {
               {/* Home location for traffic */}
               <div>
                 <Label>Home Address (for traffic alerts)</Label>
-                <input value={homeLocation} onChange={e=>setHomeLocation(e.target.value)} placeholder="e.g. 123 Main St, New York, NY" style={IS()}/>
+                <AddressInput value={homeLocation} onChange={setHomeLocation} placeholder="e.g. 123 Main St, New York, NY" />
                 <div style={{fontSize:'11px',color:T.text4,marginTop:'5px'}}>Calculates drive time to events. Never shared.</div>
               </div>
 
