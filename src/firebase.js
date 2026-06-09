@@ -10,9 +10,20 @@ import {
   onAuthStateChanged,
   signOut,
 } from 'firebase/auth';
+import {
+  getFirestore,
+  doc,
+  collection,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  orderBy,
+} from 'firebase/firestore';
 
 // ── Paste your Firebase config here ──────────────────────────────────────────
 // Get this from: Firebase Console → Project Settings → Your apps → Web app
+// Also enable Firestore in your Firebase Console (Build → Firestore Database)
 const firebaseConfig = {
   apiKey:            "PASTE_YOUR_API_KEY",
   authDomain:        "PASTE_YOUR_AUTH_DOMAIN",
@@ -24,11 +35,12 @@ const firebaseConfig = {
 
 const IS_CONFIGURED = !firebaseConfig.apiKey.includes('PASTE');
 
-let app, auth, googleProvider, appleProvider;
+let app, auth, db, googleProvider, appleProvider;
 
 if (IS_CONFIGURED) {
-  app           = initializeApp(firebaseConfig);
-  auth          = getAuth(app);
+  app            = initializeApp(firebaseConfig);
+  auth           = getAuth(app);
+  db             = getFirestore(app);
   googleProvider = new GoogleAuthProvider();
   appleProvider  = new OAuthProvider('apple.com');
   appleProvider.addScope('email');
@@ -36,7 +48,9 @@ if (IS_CONFIGURED) {
 }
 
 export {
-  auth, googleProvider, appleProvider, IS_CONFIGURED,
+  auth, db, googleProvider, appleProvider, IS_CONFIGURED,
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signInWithPopup, updateProfile, onAuthStateChanged, signOut,
+  // Firestore helpers
+  doc, collection, setDoc, deleteDoc, onSnapshot, query, orderBy,
 };

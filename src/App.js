@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  auth, googleProvider, appleProvider, IS_CONFIGURED,
+  auth, db, googleProvider, appleProvider, IS_CONFIGURED,
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signInWithPopup, updateProfile, onAuthStateChanged,
+  doc, collection, setDoc, deleteDoc, onSnapshot, query, orderBy,
 } from './firebase';
 
 // ─── API Config (fill in before deploying) ───────────────────────────────────
@@ -1032,7 +1033,15 @@ function GiftModal({partnerName,onClose}) {
 
 // ─── ShareModal (invite link — recipient must create an account) ──────────────
 function ShareModal({tzA,labelA,onClose,plan}) {
-  const inviteData = encodeShare({type:'invite',fromName:labelA,fromTz:tzA,ts:Date.now()});
+  // Generate a stable coupleId and save to our config so both sides share the same Firestore collection
+  const coupleId = useState(()=>{
+    const cfg=LS.get('ophelia_config',null);
+    if(cfg?.coupleId) return cfg.coupleId;
+    const id=`couple_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    if(cfg){const updated={...cfg,coupleId:id};LS.set('ophelia_config',updated);}
+    return id;
+  })[0];
+  const inviteData = encodeShare({type:'invite',fromName:labelA,fromTz:tzA,coupleId,ts:Date.now()});
   const url = `${window.location.origin}${window.location.pathname}?invite=${inviteData}`;
   const [copied,setCopied] = useState(false);
   async function copy(){try{await navigator.clipboard.writeText(url);setCopied(true);setTimeout(()=>setCopied(false),2500);}catch{}}
@@ -1849,8 +1858,22 @@ function Calendar({config,onReset}) {
     if(adminTaps.current>=5){adminTaps.current=0;setShowAdmin(true);}
   }
 
+  // Persist events locally always
   useEffect(()=>{LS.set(evKey,events);},[events]);
   useEffect(()=>{LS.set(ntKey,notes);},[notes]);
+
+  // ── Firestore real-time sync (only when Firebase configured + coupleId exists) ──
+  const coupleId = config?.coupleId||null;
+  useEffect(()=>{
+    if(!IS_CONFIGURED||!coupleId||!db) return;
+    const colRef=collection(db,`couples/${coupleId}/events`);
+    const unsubscribe=onSnapshot(query(colRef,orderBy('date')), snap=>{
+      const remote=snap.docs.map(d=>d.data());
+      setEvents(remote);
+      LS.set(evKey,remote);
+    });
+    return unsubscribe;
+  },[coupleId]);
 
   const activeTzA=travelMode?travelTz:tzA;
   const accentB=hasPartner?T.rose:isTraveler?T.sky:T.sage;
@@ -2155,7 +2178,18 @@ function Calendar({config,onReset}) {
       </div>
 
       {/* Modals */}
-      {modal!==null&&<EventModal event={modal} tzA={tzA} tzB={isLocal?null:tzB} labelA={labelA} labelB={labelB} homeLocation={homeLocation} plan={config?.plan||'free'} eventCount={events.length} onClose={()=>setModal(null)} onSave={ev=>{setEvents(prev=>{const ex=prev.find(i=>i.id===ev.id);return ex?prev.map(i=>i.id===ev.id?ev:i):[...prev,ev];});setModal(null);}} onDelete={id=>{setEvents(prev=>prev.filter(e=>e.id!==id));setModal(null);}}/>}
+      {modal!==null&&<EventModal event={modal} tzA={tzA} tzB={isLocal?null:tzB} labelA={labelA} labelB={labelB} homeLocation={homeLocation} plan={config?.plan||'free'} eventCount={events.length} onClose={()=>setModal(null)}
+        onSave={ev=>{
+          setEvents(prev=>{const ex=prev.find(i=>i.id===ev.id);return ex?prev.map(i=>i.id===ev.id?ev:i):[...prev,ev];});
+          if(IS_CONFIGURED&&coupleId&&db) setDoc(doc(db,`couples/${coupleId}/events/${ev.id}`),ev).catch(()=>{});
+          setModal(null);
+        }}
+        onDelete={id=>{
+          setEvents(prev=>prev.filter(e=>e.id!==id));
+          if(IS_CONFIGURED&&coupleId&&db) deleteDoc(doc(db,`couples/${coupleId}/events/${id}`)).catch(()=>{});
+          setModal(null);
+        }}
+      />}
       {panel==='meeting'&&<MeetingFinder tzA={activeTzA} tzB={tzB} labelA={labelA} labelB={labelB} onClose={()=>setPanel(null)}/>}
       {panel==='share'&&<ShareModal tzA={tzA} labelA={labelA} plan={config?.plan||'free'} onClose={()=>setPanel(null)}/>}
       {showGift&&<GiftModal partnerName={labelB} onClose={()=>setShowGift(false)}/>}
@@ -2242,6 +2276,7 @@ function OpheliaApp() {
       homeLocation:'',
       plan:'free',
       user:{...user,plan:'free'},
+      coupleId:inv.coupleId||null,
       connectedViaInvite:true,
     };
     LS.set('ophelia_config',cfg);
