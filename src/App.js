@@ -254,7 +254,7 @@ const Overlay = ({onClose,zIndex=200,children})=>(
   <div className="overlay-inner" style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex,padding:'20px',backdropFilter:'blur(4px)'}} onClick={onClose}>{children}</div>
 );
 const Card = ({children,style={}})=>(
-  <div className="modal-card" style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'clamp(18px,4vw,28px)',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',...style}}>{children}</div>
+  <div className="modal-card" onClick={e=>e.stopPropagation()} style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'clamp(18px,4vw,28px)',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',...style}}>{children}</div>
 );
 
 // ─── TzSelect ────────────────────────────────────────────────────────────────
@@ -275,38 +275,39 @@ function TzSelect({value,onChange,style}) {
 
 // ─── AuthScreen ───────────────────────────────────────────────────────────────
 function AuthScreen({onComplete}) {
-  const [mode,  setMode]  = useState('signin');   // 'signin' | 'signup'
-  const [email, setEmail] = useState('');
-  const [pass,  setPass]  = useState('');
-  const [name,  setName]  = useState('');
-  const [err,   setErr]   = useState('');
+  const [mode,   setMode]   = useState('signin');
+  const [email,  setEmail]  = useState('');
+  const [pass,   setPass]   = useState('');
+  const [name,   setName]   = useState('');
+  const [phone,  setPhone]  = useState('');
+  const [smsOk,  setSmsOk]  = useState(false);
+  const [pushOk, setPushOk] = useState(false);
+  const [err,    setErr]    = useState('');
 
-  function handleEmail(e) {
+  async function requestPush() {
+    if(!('Notification' in window)) return false;
+    const result = await Notification.requestPermission();
+    return result === 'granted';
+  }
+
+  async function handleEmail(e) {
     e.preventDefault();
     if(!email||!pass) { setErr('Please fill in all fields.'); return; }
     if(mode==='signup'&&!name) { setErr('Please enter your name.'); return; }
     setErr('');
-    // TODO: Replace with Firebase auth
-    // firebase.auth().signInWithEmailAndPassword(email, pass) — sign in
-    // firebase.auth().createUserWithEmailAndPassword(email, pass) — sign up
-    const user = { id:Date.now(), email, name:name||email.split('@')[0], authMethod:'email' };
+    let pushGranted = false;
+    if(mode==='signup'&&pushOk) pushGranted = await requestPush();
+    const user = { id:Date.now(), email, name:name||email.split('@')[0], authMethod:'email', phone:phone||'', smsConsent:smsOk, pushEnabled:pushGranted };
     const stored = LS.get('ophelia_users',[]);
     if(!stored.find(u=>u.email===email)) LS.set('ophelia_users',[...stored,user]);
     onComplete(user);
   }
 
   function handleGoogle() {
-    // TODO: Replace with Firebase Google Sign-In
-    // const provider = new firebase.auth.GoogleAuthProvider();
-    // firebase.auth().signInWithPopup(provider).then(result => onComplete(result.user));
     const user = { id:Date.now(), email:'', name:'Google User', authMethod:'google' };
     onComplete(user);
   }
-
   function handleApple() {
-    // TODO: Replace with Firebase Apple Sign-In
-    // const provider = new firebase.auth.OAuthProvider('apple.com');
-    // firebase.auth().signInWithPopup(provider).then(result => onComplete(result.user));
     const user = { id:Date.now(), email:'', name:'Apple User', authMethod:'apple' };
     onComplete(user);
   }
@@ -319,7 +320,6 @@ function AuthScreen({onComplete}) {
           <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'16px',color:T.text3,fontStyle:'italic'}}>{mode==='signup'?'Create your account':'Welcome back'}</div>
         </div>
 
-        {/* Social */}
         <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'20px'}}>
           <button onClick={handleGoogle} style={{...GB({width:'100%',padding:'12px',textAlign:'center',background:'#fff',border:`1px solid ${T.border}`}),display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',fontWeight:500}}>
             <span style={{fontSize:'14px'}}>&#9673;</span> Continue with Google
@@ -339,6 +339,43 @@ function AuthScreen({onComplete}) {
           {mode==='signup'&&<input placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} style={IS()} />}
           <input type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} style={IS()} />
           <input type="password" placeholder="Password (8+ characters)" value={pass} onChange={e=>setPass(e.target.value)} style={IS()} />
+
+          {mode==='signup'&&(
+            <>
+              <div>
+                <input type="tel" placeholder="Phone number (optional)" value={phone} onChange={e=>setPhone(e.target.value)} style={IS()} />
+                <div style={{fontSize:'11px',color:T.text4,marginTop:'5px',lineHeight:1.5}}>For urgent alerts like major traffic delays. Never used for marketing.</div>
+              </div>
+
+              {/* Permissions */}
+              <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'14px 16px',display:'flex',flexDirection:'column',gap:'12px'}}>
+                <div style={{fontSize:'12px',fontWeight:700,color:T.text2,letterSpacing:'0.04em'}}>Stay in the loop</div>
+
+                <label style={{display:'flex',alignItems:'flex-start',gap:'12px',cursor:'pointer'}}>
+                  <div onClick={()=>setPushOk(v=>!v)} style={{width:'20px',height:'20px',borderRadius:'5px',border:`2px solid ${pushOk?T.accent:T.border}`,background:pushOk?T.accent:'#fff',flexShrink:0,marginTop:'1px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+                    {pushOk&&<span style={{color:'#fff',fontSize:'12px',fontWeight:700}}>&#10003;</span>}
+                  </div>
+                  <div>
+                    <div style={{fontSize:'13px',color:T.text1,fontWeight:600}}>Push notifications</div>
+                    <div style={{fontSize:'11px',color:T.text4,marginTop:'2px'}}>Event reminders and urgent alerts on this device</div>
+                  </div>
+                </label>
+
+                {phone&&(
+                  <label style={{display:'flex',alignItems:'flex-start',gap:'12px',cursor:'pointer'}}>
+                    <div onClick={()=>setSmsOk(v=>!v)} style={{width:'20px',height:'20px',borderRadius:'5px',border:`2px solid ${smsOk?T.accent:T.border}`,background:smsOk?T.accent:'#fff',flexShrink:0,marginTop:'1px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+                      {smsOk&&<span style={{color:'#fff',fontSize:'12px',fontWeight:700}}>&#10003;</span>}
+                    </div>
+                    <div>
+                      <div style={{fontSize:'13px',color:T.text1,fontWeight:600}}>SMS alerts</div>
+                      <div style={{fontSize:'11px',color:T.text4,marginTop:'2px'}}>Text me for critical updates only (e.g. severe traffic). Msg &amp; data rates may apply.</div>
+                    </div>
+                  </label>
+                )}
+              </div>
+            </>
+          )}
+
           {err&&<div style={{fontSize:'12px',color:T.danger,background:'#fdf0f0',border:'1px solid #e0b0b0',borderRadius:'8px',padding:'8px 12px'}}>{err}</div>}
           <button type="submit" style={PB({width:'100%',padding:'13px',textAlign:'center',borderRadius:'12px'})}>
             {mode==='signup'?'Create Account':'Sign In'} &#8594;
@@ -616,26 +653,78 @@ function LoveNoteSplash({notes,labelA,labelB,onClose}) {
 }
 
 // ─── GiftModal ────────────────────────────────────────────────────────────────
+// Partner companies to integrate:
+//  Flowers:  1-800-Flowers (API + affiliate), FTD, Bloom & Wild (UK/EU), Interflora (int'l)
+//  Gifts:    UncommonGoods, Not On The High Street (UK), Etsy Affiliate, Goldbelly (food)
+//  Self-care: Sephora affiliate, The Body Shop, Tatcha
+// Integration path: join each affiliate program → add links to AFFILIATE_PACKAGES via Admin panel
+// For real-time ordering: use each brand's API or Zapier → backend order handler → Stripe charge
 function GiftModal({partnerName,onClose}) {
   const [tab,setTab]=useState('flowers');
   const [selected,setSelected]=useState(null);
   const [address,setAddress]=useState('');
   const [date,setDate]=useState('');
   const [note,setNote]=useState('');
-  const [sent,setSent]=useState(false);
+  const [step,setStep]=useState('browse'); // 'browse' | 'details' | 'sent'
   const affiliatePkgs=LS.get('ophelia_affiliate_packages',[]);
   const allItems=[...GIFT_ITEMS,...affiliatePkgs];
   const item=allItems.find(g=>g.id===selected);
   const items=tab==='affiliate'?affiliatePkgs:GIFT_ITEMS.filter(g=>g.cat===tab);
 
-  if(sent){
+  if(step==='sent'){
     return(
       <Overlay onClose={onClose}><Card style={{maxWidth:'380px',textAlign:'center'}}>
         <div style={{fontSize:'36px',color:T.rose,marginBottom:'14px'}}>&#9825;</div>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'24px',color:T.text1,marginBottom:'8px',fontWeight:600}}>On its way to {partnerName}</div>
-        <div style={{fontSize:'13px',color:T.text2,marginBottom:'12px'}}>Your {item?.name.toLowerCase()} is scheduled for {date}.</div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'24px',color:T.text1,marginBottom:'8px',fontWeight:600}}>Sent to {partnerName}</div>
+        <div style={{fontSize:'13px',color:T.text2,marginBottom:'12px'}}>Your {item?.name?.toLowerCase()} is scheduled for {date}.</div>
         <div style={{fontSize:'13px',color:T.text3,fontStyle:'italic',marginBottom:'24px',padding:'12px',background:T.surface,borderRadius:'10px'}}>"{note||'Thinking of you.'}"</div>
+        <div style={{fontSize:'11px',color:T.text4,marginBottom:'20px',lineHeight:1.6}}>Live delivery processing will be active once gift partner APIs are connected.</div>
         <button onClick={onClose} style={PB({padding:'11px 32px',borderRadius:'40px'})}>Done</button>
+      </Card></Overlay>
+    );
+  }
+
+  if(step==='details'&&item){
+    return(
+      <Overlay onClose={onClose}><Card style={{maxWidth:'440px'}}>
+        <div style={{display:'flex',gap:'12px',alignItems:'flex-start',marginBottom:'20px'}}>
+          <button onClick={()=>setStep('browse')} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'20px',padding:'2px',lineHeight:1}}>&#8592;</button>
+          <div style={{flex:1}}>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',color:T.text1,fontWeight:600}}>{item.name}</div>
+            <div style={{fontSize:'13px',color:T.text3,marginTop:'2px'}}>{item.desc}</div>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'18px'}}>&#10005;</button>
+        </div>
+
+        <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+          <div><Label>Delivery address for {partnerName}</Label><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Street, city, state, zip..." style={IS()}/></div>
+          <div><Label>Deliver on</Label><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={IS()}/></div>
+          <div><Label>Personal note</Label><textarea value={note} onChange={e=>setNote(e.target.value)} onClick={e=>e.stopPropagation()} placeholder="Write them something..." rows={3} style={IS({resize:'none'})}/></div>
+
+          <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'14px 16px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}>
+              <span style={{fontSize:'13px',color:T.text2}}>{item.name}</span>
+              <span style={{fontSize:'13px',color:T.text1,fontWeight:700}}>${item.price}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontSize:'12px',color:T.text4}}>Delivery</span>
+              <span style={{fontSize:'12px',color:T.text4}}>Calculated at checkout</span>
+            </div>
+            <div style={{borderTop:`1px solid ${T.border}`,marginTop:'10px',paddingTop:'10px',display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontWeight:700,color:T.text1,fontSize:'14px'}}>Est. total</span>
+              <span style={{fontWeight:700,color:T.accent,fontSize:'14px'}}>${item.price}+</span>
+            </div>
+            <div style={{fontSize:'11px',color:T.text4,marginTop:'6px'}}>Secured by Stripe. Gift partner APIs coming soon.</div>
+          </div>
+
+          <button
+            onClick={()=>{if(address&&date)setStep('sent');}}
+            style={PB({padding:'13px',textAlign:'center',borderRadius:'12px',opacity:address&&date?1:0.4,background:T.rose})}
+          >
+            Send {item.name} to {partnerName} &#8594;
+          </button>
+          {(!address||!date)&&<div style={{fontSize:'11px',color:T.text4,textAlign:'center'}}>Add delivery address and date to continue</div>}
+        </div>
       </Card></Overlay>
     );
   }
@@ -646,50 +735,35 @@ function GiftModal({partnerName,onClose}) {
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600}}>Send a Gift</div>
         <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'18px'}}>&#10005;</button>
       </div>
-      <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>Delivered directly to {partnerName}'s door.</div>
+      <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>Delivered to {partnerName}'s door.</div>
 
       <div style={{display:'flex',gap:'6px',marginBottom:'18px',flexWrap:'wrap'}}>
         {[{id:'flowers',label:'Flowers'},{id:'package',label:'Care Packages'},{id:'affiliate',label:'Partner Gifts'}].map(t=>(
-          <button key={t.id} onClick={()=>{setTab(t.id);setSelected(null);}} style={{...GB({flex:1,textAlign:'center',padding:'9px 10px',minWidth:'90px'}),background:tab===t.id?`${T.rose}15`:T.surface2,border:`1px solid ${tab===t.id?`${T.rose}60`:T.border}`,color:tab===t.id?T.rose:T.text3,fontWeight:tab===t.id?700:400}} dangerouslySetInnerHTML={{__html:t.label}}/>
+          <button key={t.id} onClick={()=>{setTab(t.id);setSelected(null);}} style={{...GB({flex:1,textAlign:'center',padding:'9px 10px',minWidth:'90px'}),background:tab===t.id?`${T.rose}15`:T.surface2,border:`1px solid ${tab===t.id?`${T.rose}60`:T.border}`,color:tab===t.id?T.rose:T.text3,fontWeight:tab===t.id?700:400}}>{t.label}</button>
         ))}
       </div>
 
       {tab==='affiliate'&&affiliatePkgs.length===0&&(
-        <div style={{textAlign:'center',padding:'40px 20px',background:T.surface,border:`1px dashed ${T.border2}`,borderRadius:'14px',marginBottom:'18px'}}>
-          <div style={{fontSize:'24px',color:T.border2,marginBottom:'10px'}}>&#9671;</div>
+        <div style={{textAlign:'center',padding:'32px 20px',background:T.surface,border:`1px dashed ${T.border2}`,borderRadius:'14px',marginBottom:'18px'}}>
+          <div style={{fontSize:'22px',color:T.border2,marginBottom:'10px'}}>&#9671;</div>
           <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'18px',color:T.text3,marginBottom:'6px'}}>Partner gifts coming soon</div>
-          <div style={{fontSize:'12px',color:T.text4,lineHeight:1.6}}>We're joining affiliate programs for curated flowers and gifts worldwide. They'll appear here once confirmed.</div>
+          <div style={{fontSize:'12px',color:T.text4,lineHeight:1.7}}>
+            We are partnering with 1-800-Flowers, Bloom &amp; Wild, UncommonGoods, and more.<br/>
+            They will appear here once live.
+          </div>
         </div>
       )}
 
       {items.length>0&&(
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'18px'}}>
           {items.map(g=>(
-            <div key={g.id} onClick={()=>setSelected(g.id)} className="lift" style={{background:selected===g.id?`${T.rose}10`:'#fff',border:`1px solid ${selected===g.id?`${T.rose}50`:T.border}`,borderRadius:'12px',padding:'14px 12px',cursor:'pointer'}}>
+            <div key={g.id} onClick={()=>{setSelected(g.id);setStep('details');}} className="lift" style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',padding:'14px 12px',cursor:'pointer'}}>
               <div style={{fontSize:'20px',color:T.rose,marginBottom:'6px'}}>{g.icon}</div>
               <div style={{fontSize:'13px',color:T.text1,fontWeight:600,marginBottom:'3px'}}>{g.name}</div>
               <div style={{fontSize:'11px',color:T.text3,marginBottom:'7px',lineHeight:1.4}}>{g.desc}</div>
-              <div style={{fontSize:'14px',color:selected===g.id?T.rose:T.text2,fontWeight:700}}>${g.price}</div>
+              <div style={{fontSize:'14px',color:T.accent,fontWeight:700}}>${g.price}</div>
             </div>
           ))}
-        </div>
-      )}
-
-      {selected&&(
-        <div style={{display:'flex',flexDirection:'column',gap:'11px',borderTop:`1px solid ${T.border}`,paddingTop:'18px'}}>
-          <div><Label>Delivery Address</Label><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Enter address..." style={IS()}/></div>
-          <div><Label>Deliver On</Label><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={IS()}/></div>
-          <div><Label>Personal Note</Label><textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Write them a note..." rows={2} style={IS({resize:'none'})}/></div>
-          <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'10px',padding:'12px 14px'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span style={{fontSize:'13px',color:T.text2,fontWeight:500}}>Total</span>
-              <span style={{fontSize:'16px',color:T.accent,fontWeight:700}}>${item?.price} + delivery</span>
-            </div>
-            <div style={{fontSize:'11px',color:T.text4,marginTop:'3px'}}>Processed securely via Stripe.</div>
-          </div>
-          <button onClick={()=>{if(address&&date)setSent(true);}} style={PB({padding:'12px',textAlign:'center',borderRadius:'12px',opacity:address&&date?1:0.45,background:T.rose})}>
-            Send {item?.name} to {partnerName} &#8594;
-          </button>
         </div>
       )}
     </Card></Overlay>
@@ -965,6 +1039,100 @@ function AdminPanel({onClose}) {
   );
 }
 
+// ─── PaymentModal ─────────────────────────────────────────────────────────────
+function PaymentModal({plan,onSuccess,onClose}) {
+  const [method, setMethod] = useState('card'); // 'card' | 'apple'
+  const [card,   setCard]   = useState('');
+  const [exp,    setExp]    = useState('');
+  const [cvc,    setCvc]    = useState('');
+  const [name,   setName]   = useState('');
+  const [err,    setErr]    = useState('');
+  const [loading,setLoading]= useState(false);
+  const planInfo = PLANS.find(p=>p.id===plan);
+  const canApplePay = typeof window !== 'undefined' && window.ApplePaySession && window.ApplePaySession.canMakePayments();
+
+  function handlePay(e) {
+    e.preventDefault();
+    if(method==='card'&&(!card||!exp||!cvc||!name)){setErr('Please fill in all card details.');return;}
+    setErr('');setLoading(true);
+    // TODO: integrate Stripe
+    // 1. Call your backend: POST /create-subscription { priceId: planInfo.stripePriceId, paymentMethod }
+    // 2. Backend creates Stripe customer + subscription, returns clientSecret
+    // 3. stripe.confirmCardPayment(clientSecret) → success → update user plan
+    // Simulating success for now:
+    setTimeout(()=>{setLoading(false);onSuccess(plan);},1200);
+  }
+
+  function handleApplePay() {
+    // TODO: integrate Stripe + Apple Pay
+    // const session = new ApplePaySession(3, { countryCode:'US', currencyCode:'USD', ... });
+    // session.begin(); handle session.onpaymentauthorized → pass token to Stripe
+    onSuccess(plan);
+  }
+
+  return(
+    <Overlay onClose={onClose}>
+      <Card style={{maxWidth:'420px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}}>
+          <div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',fontWeight:600,color:T.text1}}>Upgrade to {planInfo?.label}</div>
+            <div style={{fontSize:'13px',color:T.accent,fontWeight:700,marginTop:'2px'}}>{planInfo?.price}</div>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'20px'}}>&#10005;</button>
+        </div>
+
+        {/* Feature summary */}
+        <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'14px 16px',marginBottom:'20px',fontSize:'12px',color:T.text3,lineHeight:1.7}}>
+          {planInfo?.sub}
+        </div>
+
+        {/* Method selector */}
+        <div style={{display:'flex',gap:'8px',marginBottom:'18px'}}>
+          <button onClick={()=>setMethod('card')} style={{...GB({flex:1,textAlign:'center',padding:'10px'}),background:method==='card'?`${T.accent}10`:T.surface2,border:`1px solid ${method==='card'?T.accent:T.border}`,color:method==='card'?T.accent:T.text3,fontWeight:method==='card'?700:400}}>
+            &#9673; Card
+          </button>
+          {canApplePay&&(
+            <button onClick={()=>setMethod('apple')} style={{...GB({flex:1,textAlign:'center',padding:'10px'}),background:method==='apple'?'#000':T.surface2,border:`1px solid ${method==='apple'?'#000':T.border}`,color:method==='apple'?'#fff':T.text3,fontWeight:700}}>
+              &#63743; Apple Pay
+            </button>
+          )}
+        </div>
+
+        {method==='apple'&&canApplePay&&(
+          <div style={{textAlign:'center',padding:'20px 0'}}>
+            <button onClick={handleApplePay} style={{background:'#000',color:'#fff',border:'none',borderRadius:'12px',padding:'14px 36px',fontSize:'16px',cursor:'pointer',fontWeight:600,fontFamily:"'DM Sans',sans-serif",letterSpacing:'0.02em'}}>
+              &#63743; Pay {planInfo?.price}
+            </button>
+            <div style={{fontSize:'11px',color:T.text4,marginTop:'10px'}}>Authenticate with Face ID or Touch ID</div>
+          </div>
+        )}
+
+        {method==='card'&&(
+          <form onSubmit={handlePay} style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+            <div><Label>Name on card</Label><input placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} style={IS()}/></div>
+            <div><Label>Card number</Label>
+              <input placeholder="1234 5678 9012 3456" value={card} onChange={e=>setCard(e.target.value.replace(/\D/g,'').slice(0,16).replace(/(.{4})/g,'$1 ').trim())} style={IS({letterSpacing:'0.1em'})} maxLength={19}/>
+            </div>
+            <div style={{display:'flex',gap:'10px'}}>
+              <div style={{flex:1}}><Label>Expiry</Label><input placeholder="MM / YY" value={exp} onChange={e=>setExp(e.target.value)} style={IS()} maxLength={7}/></div>
+              <div style={{flex:1}}><Label>CVC</Label><input placeholder="123" value={cvc} onChange={e=>setCvc(e.target.value.replace(/\D/g,'').slice(0,4))} style={IS()} maxLength={4}/></div>
+            </div>
+            {err&&<div style={{fontSize:'12px',color:T.danger,background:'#fdf0f0',border:'1px solid #e0b0b0',borderRadius:'8px',padding:'8px 12px'}}>{err}</div>}
+            <button type="submit" disabled={loading} style={PB({padding:'13px',textAlign:'center',borderRadius:'12px',opacity:loading?0.6:1})}>
+              {loading?'Processing...`':`Pay ${planInfo?.price} &#8594;`}
+            </button>
+          </form>
+        )}
+
+        <div style={{fontSize:'11px',color:T.text4,textAlign:'center',marginTop:'14px',lineHeight:1.6}}>
+          Secured by Stripe. Cancel anytime from account settings.<br/>
+          You won't be charged until Stripe integration is live.
+        </div>
+      </Card>
+    </Overlay>
+  );
+}
+
 // ─── Onboarding ───────────────────────────────────────────────────────────────
 function Onboarding({onComplete}) {
   const [step,setStep]=useState(0);
@@ -974,9 +1142,20 @@ function Onboarding({onComplete}) {
   const [partnerName,setPartnerName]=useState('');
   const [tzA,setTzA]=useState('America/New_York');
   const [tzB,setTzB]=useState('Australia/Melbourne');
+  const [extraTzs,setExtraTzs]=useState([{tz:'Europe/London',label:'City 2'}]);
   const [homeLocation,setHomeLocation]=useState('');
+  const [showPayment,setShowPayment]=useState(false);
+  const [paidPlan,setPaidPlan]=useState(null);
   const toggle=id=>setTypes(c=>c.includes(id)?c.filter(i=>i!==id):[...c,id]);
   const progress=[0,25,50,75,100][step];
+  const hasCouple=types.includes('couple');
+  const hasTraveler=types.includes('traveler');
+  const hasLocal=types.includes('local')&&!hasCouple&&!hasTraveler;
+
+  function finishOnboarding(){
+    const finalPlan = paidPlan || plan;
+    onComplete({plan:finalPlan,types,name,partnerName,tzA,tzB,extraTzs,homeLocation,user:{id:Date.now(),email:'',name,plan:finalPlan,authMethod:'onboarding'}});
+  }
 
   return(
     <div style={{minHeight:'100vh',background:T.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px',fontFamily:"'DM Sans',sans-serif"}}>
@@ -989,7 +1168,7 @@ function Onboarding({onComplete}) {
             <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(56px,12vw,80px)',fontWeight:300,color:T.text1,lineHeight:0.9,letterSpacing:'-0.02em',marginBottom:'8px'}}>Ophelia</h1>
             <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'17px',color:T.text3,fontStyle:'italic',marginBottom:'40px'}}>your everyday calendar</div>
             <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'36px',textAlign:'left'}}>
-              {[['◇','Made for people who live across time zones'],['⊕','Real-time traffic alerts — know when to leave'],['✦','Send flowers, gifts, and love notes between cities']].map(([icon,text])=>(
+              {[['◇','Stay connected across any time zone'],['⊕','Real-time traffic alerts — know when to leave'],['✦','Send flowers, gifts, and notes to the people you love']].map(([icon,text])=>(
                 <div key={text} style={{display:'flex',gap:'14px',alignItems:'center',background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',padding:'14px 16px'}}>
                   <span style={{color:T.accent,fontSize:'18px',width:'22px',textAlign:'center',flexShrink:0}}>{icon}</span>
                   <span style={{fontSize:'14px',color:T.text2,fontWeight:500}}>{text}</span>
@@ -1001,32 +1180,43 @@ function Onboarding({onComplete}) {
           </div>
         )}
 
+        {/* ── Step 1: Choose plan ── */}
         {step===1&&(
           <div>
             <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'30px',fontWeight:400,color:T.text1,marginBottom:'6px'}}>Choose your plan</div>
-            <div style={{fontSize:'14px',color:T.text3,marginBottom:'26px'}}>Start free for 30 days. Cancel anytime.</div>
+            <div style={{fontSize:'14px',color:T.text3,marginBottom:'26px'}}>Start free. Upgrade anytime.</div>
             <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'28px'}}>
               {PLANS.map(item=>(
                 <div key={item.id} onClick={()=>setPlan(item.id)} className="lift" style={{background:plan===item.id?`${T.accent}0e`:'#fff',border:`1.5px solid ${plan===item.id?T.accent:T.border}`,borderRadius:'14px',padding:'18px 20px',cursor:'pointer',position:'relative',boxShadow:'0 2px 10px rgba(0,0,0,0.06)'}}>
                   {item.badge&&<div style={{position:'absolute',top:'-11px',left:'16px',background:T.accent,color:'#fff',fontSize:'10px',fontWeight:700,padding:'3px 10px',borderRadius:'20px',letterSpacing:'0.06em'}}>{item.badge}</div>}
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                    <div><div style={{fontSize:'15px',color:T.text1,fontWeight:700,marginBottom:'3px'}}>{item.label}</div><div style={{fontSize:'12px',color:T.text3}}>{item.sub}</div></div>
-                    <div style={{fontSize:'14px',color:plan===item.id?T.accent:T.text3,fontWeight:700,flexShrink:0,marginLeft:'12px'}}>{item.price}</div>
+                    <div style={{flex:1,marginRight:'12px'}}>
+                      <div style={{fontSize:'15px',color:T.text1,fontWeight:700,marginBottom:'4px'}}>{item.label}</div>
+                      <div style={{fontSize:'12px',color:T.text3,lineHeight:1.5}}>{item.sub}</div>
+                    </div>
+                    <div style={{fontSize:'14px',color:plan===item.id?T.accent:T.text3,fontWeight:700,flexShrink:0}}>{item.price}</div>
                   </div>
                 </div>
               ))}
             </div>
             <div style={{display:'flex',gap:'10px'}}>
               <button onClick={()=>setStep(0)} style={GB({flexShrink:0})}>Back</button>
-              <button onClick={()=>setStep(2)} style={PB({flex:1,textAlign:'center'})}>Continue</button>
+              <button onClick={()=>{
+                if(plan!=='free'){setShowPayment(true);}
+                else setStep(2);
+              }} style={PB({flex:1,textAlign:'center'})}>
+                {plan==='free'?'Continue':'Pay & Continue'}
+              </button>
             </div>
+            {showPayment&&<PaymentModal plan={plan} onClose={()=>setShowPayment(false)} onSuccess={p=>{setPaidPlan(p);setShowPayment(false);setStep(2);}}/>}
           </div>
         )}
 
+        {/* ── Step 2: Calendar type ── */}
         {step===2&&(
           <div>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'30px',fontWeight:400,color:T.text1,marginBottom:'6px'}}>How do you use your time?</div>
-            <div style={{fontSize:'14px',color:T.text3,marginBottom:'22px'}}>Select all that apply.</div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'30px',fontWeight:400,color:T.text1,marginBottom:'6px'}}>How do you use Ophelia?</div>
+            <div style={{fontSize:'14px',color:T.text3,marginBottom:'22px'}}>Select all that apply — features adapt to your choices.</div>
             <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'26px'}}>
               {USER_TYPES.map(ut=>{const sel=types.includes(ut.id);return(
                 <div key={ut.id} onClick={()=>toggle(ut.id)} className="lift" style={{background:sel?`${ut.accent}0e`:'#fff',border:`1.5px solid ${sel?ut.accent:T.border}`,borderRadius:'14px',padding:'18px 20px',cursor:'pointer',boxShadow:'0 2px 10px rgba(0,0,0,0.06)'}}>
@@ -1053,31 +1243,70 @@ function Onboarding({onComplete}) {
           </div>
         )}
 
+        {/* ── Step 3: Tailored profile setup ── */}
         {step===3&&(
           <div>
             <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'30px',fontWeight:400,color:T.text1,marginBottom:'6px'}}>Set up your profile</div>
-            <div style={{fontSize:'14px',color:T.text3,marginBottom:'22px'}}>Just the basics to get started.</div>
+            <div style={{fontSize:'14px',color:T.text3,marginBottom:'22px'}}>
+              {hasCouple&&hasTraveler?'Couple + traveler mode — you get everything.'
+               :hasCouple?'Long-distance couple mode.'
+               :hasTraveler?'Business traveler mode.'
+               :'Local calendar mode.'}
+            </div>
             <div style={{display:'flex',flexDirection:'column',gap:'14px',marginBottom:'26px'}}>
+
+              {/* Always: your name */}
               <div><Label>Your Name</Label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name..." style={IS()}/></div>
-              <div><Label>Your Timezone</Label><TzSelect value={tzA} onChange={e=>setTzA(e.target.value)}/></div>
+
+              {/* Always: your home timezone */}
+              <div><Label>Your Home Timezone</Label><TzSelect value={tzA} onChange={e=>setTzA(e.target.value)}/></div>
+
+              {/* Home location for traffic */}
               <div>
-                <Label>Home Location (for traffic alerts)</Label>
+                <Label>Home Address (for traffic alerts)</Label>
                 <input value={homeLocation} onChange={e=>setHomeLocation(e.target.value)} placeholder="e.g. 123 Main St, New York, NY" style={IS()}/>
-                <div style={{fontSize:'11px',color:T.text4,marginTop:'5px'}}>Used to calculate drive time to events. Never shared.</div>
+                <div style={{fontSize:'11px',color:T.text4,marginTop:'5px'}}>Calculates drive time to events. Never shared.</div>
               </div>
-              {(types.includes('couple')||types.includes('traveler'))&&(
-                <>
-                  <div style={{borderTop:`1px solid ${T.border}`,paddingTop:'14px'}}>
-                    <Label color={T.rose}>{types.includes('couple')?"Partner's Name":'Primary Contact'}</Label>
-                    <input value={partnerName} onChange={e=>setPartnerName(e.target.value)} placeholder="Their name..." style={IS()}/>
-                  </div>
+
+              {/* Couple: partner name + their timezone */}
+              {hasCouple&&(
+                <div style={{background:`${T.rose}08`,border:`1px solid ${T.rose}25`,borderRadius:'14px',padding:'16px',display:'flex',flexDirection:'column',gap:'12px'}}>
+                  <div style={{fontSize:'12px',fontWeight:700,color:T.rose,letterSpacing:'0.08em',textTransform:'uppercase'}}>◇ Your Person</div>
+                  <div><Label color={T.rose}>Their Name</Label><input value={partnerName} onChange={e=>setPartnerName(e.target.value)} placeholder="Their name..." style={IS()}/></div>
                   <div><Label color={T.rose}>Their Timezone</Label><TzSelect value={tzB} onChange={e=>setTzB(e.target.value)}/></div>
-                </>
+                  <div style={{fontSize:'11px',color:T.text4}}>You will share a calendar and can send each other notes and gifts.</div>
+                </div>
+              )}
+
+              {/* Traveler: multiple city timezones */}
+              {hasTraveler&&(
+                <div style={{background:`${T.sky}08`,border:`1px solid ${T.sky}25`,borderRadius:'14px',padding:'16px',display:'flex',flexDirection:'column',gap:'12px'}}>
+                  <div style={{fontSize:'12px',fontWeight:700,color:T.sky,letterSpacing:'0.08em',textTransform:'uppercase'}}>⊕ Travel Timezones</div>
+                  <div style={{fontSize:'12px',color:T.text3}}>Add the cities you travel to most. You can switch between them with Travel Mode.</div>
+                  {!hasCouple&&<div><Label color={T.sky}>Primary Work Contact / City</Label><input value={partnerName} onChange={e=>setPartnerName(e.target.value)} placeholder="Contact name or city..." style={IS()}/></div>}
+                  {!hasCouple&&<div><Label color={T.sky}>Their / That City's Timezone</Label><TzSelect value={tzB} onChange={e=>setTzB(e.target.value)}/></div>}
+                  {extraTzs.map((et,i)=>(
+                    <div key={i} style={{display:'flex',gap:'8px',alignItems:'flex-end'}}>
+                      <div style={{flex:1}}><Label color={T.sky}>Extra City {i+2} Label</Label><input value={et.label} onChange={e=>setExtraTzs(prev=>prev.map((x,j)=>j===i?{...x,label:e.target.value}:x))} placeholder={`City ${i+2}`} style={IS()}/></div>
+                      <div style={{flex:2}}><Label color={T.sky}>Timezone</Label><TzSelect value={et.tz} onChange={e=>setExtraTzs(prev=>prev.map((x,j)=>j===i?{...x,tz:e.target.value}:x))}/></div>
+                      <button onClick={()=>setExtraTzs(prev=>prev.filter((_,j)=>j!==i))} style={{...GB({padding:'10px 12px',flexShrink:0}),color:T.danger,marginBottom:'0'}}>&#10005;</button>
+                    </div>
+                  ))}
+                  <button onClick={()=>setExtraTzs(prev=>[...prev,{tz:'Asia/Tokyo',label:`City ${prev.length+2}`}])} style={GB({textAlign:'center',fontSize:'12px'})}>&#43; Add another city</button>
+                </div>
+              )}
+
+              {/* Local only */}
+              {hasLocal&&(
+                <div style={{background:`${T.sage}08`,border:`1px solid ${T.sage}25`,borderRadius:'14px',padding:'14px 16px'}}>
+                  <div style={{fontSize:'12px',color:T.sage,fontWeight:600}}>&#9671; Single timezone mode — clean, fast, local.</div>
+                  <div style={{fontSize:'11px',color:T.text4,marginTop:'4px'}}>Color events, set reminders, and get traffic alerts. You can add timezones later.</div>
+                </div>
               )}
             </div>
             <div style={{display:'flex',gap:'10px'}}>
               <button onClick={()=>setStep(2)} style={GB({flexShrink:0})}>Back</button>
-              <button onClick={()=>name&&onComplete({plan,types,name,partnerName,tzA,tzB,homeLocation,user:{id:Date.now(),email:'',name,plan,authMethod:'onboarding'}})} disabled={!name} style={PB({flex:1,textAlign:'center',opacity:!name?0.4:1})}>Open Ophelia &#8594;</button>
+              <button onClick={()=>name&&finishOnboarding()} disabled={!name} style={PB({flex:1,textAlign:'center',opacity:!name?0.4:1})}>Open Ophelia &#8594;</button>
             </div>
           </div>
         )}
@@ -1087,7 +1316,7 @@ function Onboarding({onComplete}) {
 }
 
 // ─── BottomNav ────────────────────────────────────────────────────────────────
-function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEvent,onAdmin,onReset,plan}) {
+function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEvent,onReset,plan}) {
   const [open,setOpen]=useState(false);
   const allUpcoming=[...events]
     .filter(e=>e.date>=todayStr)
@@ -1237,17 +1466,17 @@ function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEven
           transform:'translateY(-6px)',
         }}>&#43;</button>
 
-        {/* Admin / settings */}
-        <button onClick={onAdmin} style={{
+        {/* Reset */}
+        <button onClick={onReset} style={{
           display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',
           background:'none',border:'none',cursor:'pointer',padding:'6px 14px',borderRadius:'12px',
           color:T.text3,
         }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="8" r="4"/>
-            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
           </svg>
-          <span style={{fontSize:'10px',fontWeight:600,letterSpacing:'0.04em'}}>Admin</span>
+          <span style={{fontSize:'10px',fontWeight:600,letterSpacing:'0.04em'}}>Reset</span>
         </button>
       </div>
     </>
@@ -1278,6 +1507,14 @@ function Calendar({config,onReset}) {
   const [showNotes,setShowNotes]=useState(false);
   const [showSplash,setShowSplash]=useState(hasPartner&&notes.length>0);
   const [showAdmin,setShowAdmin]=useState(false);
+  const adminTaps=useRef(0);
+  const adminTimer=useRef(null);
+  function handleLogoTap(){
+    adminTaps.current+=1;
+    clearTimeout(adminTimer.current);
+    adminTimer.current=setTimeout(()=>{adminTaps.current=0;},1500);
+    if(adminTaps.current>=5){adminTaps.current=0;setShowAdmin(true);}
+  }
 
   useEffect(()=>{LS.set('ophelia_events',events);},[events]);
   useEffect(()=>{LS.set('ophelia_notes',notes);},[notes]);
@@ -1306,7 +1543,7 @@ function Calendar({config,onReset}) {
 
           {/* Header */}
           <div style={{textAlign:'center',marginBottom:'28px'}}>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'11px',letterSpacing:'0.4em',color:T.text4,textTransform:'uppercase',marginBottom:'6px'}}>Ophelia</div>
+            <div onClick={handleLogoTap} style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'11px',letterSpacing:'0.4em',color:T.text4,textTransform:'uppercase',marginBottom:'6px',cursor:'default',userSelect:'none'}}>Ophelia</div>
             <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(28px,5vw,42px)',fontWeight:300,color:T.text1,lineHeight:1.05}}>
               {hasPartner?<>Hello, <em style={{color:T.accent,fontStyle:'italic'}}>{labelA}</em></>:isLocal?<>Good {today.getHours()<12?'morning':today.getHours()<18?'afternoon':'evening'}, <em style={{color:T.accent}}>{labelA}</em></>:<>Welcome back, <em style={{color:T.accent}}>{labelA}</em></>}
             </h1>
@@ -1456,7 +1693,6 @@ function Calendar({config,onReset}) {
         todayStr={todayStr}
         onEventClick={ev=>setModal(ev)}
         onNewEvent={()=>setModal({})}
-        onAdmin={()=>setShowAdmin(true)}
         onReset={onReset}
         plan={config?.plan||'free'}
       />
