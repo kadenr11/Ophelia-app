@@ -227,8 +227,9 @@ function decodeShare(v) { try{return JSON.parse(decodeURIComponent(escape(atob(v
 function dateLabel(ds)  { try{return new Date(`${ds}T12:00`).toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch{return ds;} }
 
 // ─── Notification helpers ─────────────────────────────────────────────────────
+const NOTIF_OK = typeof Notification !== 'undefined';
 async function requestNotifPermission() {
-  if(!('Notification' in window)) return false;
+  if(!NOTIF_OK) return false;
   if(Notification.permission==='granted') return true;
   const result = await Notification.requestPermission();
   return result==='granted';
@@ -239,7 +240,7 @@ function getSW() {
 }
 function scheduleEventNotif(ev, minutesBefore) {
   const sw = getSW();
-  if(!sw||Notification.permission!=='granted') return;
+  if(!sw||!NOTIF_OK||Notification.permission!=='granted') return;
   sw.postMessage({type:'schedule',event:ev,minutesBefore,label:'Ophelia reminder'});
 }
 function cancelEventNotif(eventId) {
@@ -248,7 +249,7 @@ function cancelEventNotif(eventId) {
 }
 function sendImmediateNotif(title, body, tag='ophelia') {
   const sw = getSW();
-  if(!sw||Notification.permission!=='granted') return;
+  if(!sw||!NOTIF_OK||Notification.permission!=='granted') return;
   sw.postMessage({type:'notify',title,body,tag});
 }
 
@@ -461,7 +462,7 @@ function AuthScreen({onComplete}) {
   const [loading,setLoading]= useState(false);
 
   async function requestPush() {
-    if(!('Notification' in window)) return false;
+    if(!NOTIF_OK) return false;
     return (await Notification.requestPermission()) === 'granted';
   }
 
@@ -1951,7 +1952,7 @@ function Calendar({config,onReset}) {
   const [showAdmin,setShowAdmin]=useState(false);
   const [showUpgrade,setShowUpgrade]=useState(false);
   const [notifMins,setNotifMins]=useState(()=>LS.get(`ophelia_notif_mins_${userId}`,30));
-  const [notifEnabled,setNotifEnabled]=useState(()=>Notification?.permission==='granted');
+  const [notifEnabled,setNotifEnabled]=useState(()=>NOTIF_OK&&Notification.permission==='granted');
   const adminTaps=useRef(0);
   const seenPartnerEventsRef=useRef(new Set(events.map(e=>e.id)));
   const adminTimer=useRef(null);
@@ -1971,7 +1972,7 @@ function Calendar({config,onReset}) {
 
   // Day-of recap on first load
   useEffect(()=>{
-    if(Notification?.permission!=='granted') return;
+    if(!NOTIF_OK||Notification.permission!=='granted') return;
     const todayEvs=events.filter(e=>e.date===todayStr).sort((a,b)=>a.time.localeCompare(b.time));
     if(todayEvs.length===0) return;
     const already=LS.get('ophelia_recap_shown','');
@@ -1986,7 +1987,7 @@ function Calendar({config,onReset}) {
 
   // Schedule reminders for all upcoming events whenever events or notifMins changes
   useEffect(()=>{
-    if(Notification?.permission!=='granted') return;
+    if(!NOTIF_OK||Notification.permission!=='granted') return;
     events.filter(e=>new Date(`${e.date}T${e.time}`)>new Date())
       .forEach(e=>scheduleEventNotif(e,notifMins));
   },[events,notifMins]);
