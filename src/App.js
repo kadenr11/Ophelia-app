@@ -159,9 +159,9 @@ const USER_TYPES = [
 ];
 
 const PLANS = [
-  { id:'free', label:'Free',          price:'Always free', priceNum:0,    sub:'Single timezone · 10 events · Basic',                          badge:null,                       stripePriceId:null },
-  { id:'plus', label:'Ophelia Plus',  price:'$3.99/mo',    priceNum:3.99, sub:'Dual clocks · Traffic alerts · Gifts · Notes · Travel mode',   badge:'Most Popular · 1 mo free', stripePriceId:'price_PLUS_ID_HERE' },
-  { id:'pro',  label:'Ophelia Pro',   price:'$6.99/mo',    priceNum:6.99, sub:'Plus + Google/Apple Calendar sync · Priority support',         badge:null,                       stripePriceId:'price_PRO_ID_HERE'  },
+  { id:'free', label:'Free',         price:'Always free', priceNum:0,    sub:'1 timezone · 10 events · Basic calendar only',                                                     badge:null,            stripePriceId:null },
+  { id:'plus', label:'Ophelia Plus', price:'$2.99/mo',    priceNum:2.99, sub:'Unlimited events · Shared calendar (1 person) · 2 timezones · Traffic alerts · Notes · Gifts',     badge:'Most Popular',  stripePriceId:'price_PLUS_ID_HERE' },
+  { id:'pro',  label:'Ophelia Pro',  price:'$5.99/mo',    priceNum:5.99, sub:'Everything in Plus · Up to 5 shared people · Google & Apple calendar sync · Priority support',     badge:null,            stripePriceId:'price_PRO_ID_HERE'  },
 ];
 
 // ─── Affiliate partners (populate after joining programs) ────────────────────
@@ -175,15 +175,15 @@ const PLANS = [
 const AFFILIATE_PACKAGES = [];   // managed via Admin panel at runtime too
 
 const GIFT_ITEMS = [
-  { id:'roses',      cat:'flowers', name:'Red Roses',          price:49, icon:'❧', desc:'A dozen long-stem red roses.' },
-  { id:'wild',       cat:'flowers', name:'Wildflower Bouquet', price:42, icon:'❧', desc:'Seasonal wildflower mix.' },
-  { id:'sunflowers', cat:'flowers', name:'Sunflowers',         price:38, icon:'❧', desc:'Six tall sunflowers.' },
-  { id:'orchid',     cat:'flowers', name:'Orchid Plant',       price:55, icon:'❧', desc:'Living orchid — lasts for weeks.' },
-  { id:'cozy',       cat:'package', name:'Cozy Night In',      price:68, icon:'◈', desc:'Candle, herbal tea, chocolate, card.' },
-  { id:'snacks',     cat:'package', name:'Snack Haul',         price:52, icon:'◈', desc:'Curated snacks from around the world.' },
-  { id:'spa',        cat:'package', name:'Spa at Home',        price:75, icon:'◈', desc:'Face mask, bath salts, oils, socks.' },
-  { id:'book',       cat:'package', name:'Book & Coffee',      price:44, icon:'◈', desc:'Bestselling novel + specialty coffee.' },
-  { id:'custom',     cat:'package', name:'Custom Box',         price:90, icon:'◈', desc:'You choose — we curate and ship.' },
+  { id:'roses',      cat:'flowers', name:'Red Roses',          price:49, icon:'✦', desc:'A dozen long-stem red roses.' },
+  { id:'wild',       cat:'flowers', name:'Wildflower Bouquet', price:42, icon:'✦', desc:'Seasonal wildflower mix.' },
+  { id:'sunflowers', cat:'flowers', name:'Sunflowers',         price:38, icon:'✦', desc:'Six tall sunflowers.' },
+  { id:'orchid',     cat:'flowers', name:'Orchid Plant',       price:55, icon:'✦', desc:'Living orchid — lasts for weeks.' },
+  { id:'cozy',       cat:'package', name:'Cozy Night In',      price:68, icon:'◆', desc:'Candle, herbal tea, chocolate, card.' },
+  { id:'snacks',     cat:'package', name:'Snack Haul',         price:52, icon:'◆', desc:'Curated snacks from around the world.' },
+  { id:'spa',        cat:'package', name:'Spa at Home',        price:75, icon:'◆', desc:'Face mask, bath salts, oils, socks.' },
+  { id:'book',       cat:'package', name:'Book & Coffee',      price:44, icon:'◆', desc:'Bestselling novel + specialty coffee.' },
+  { id:'custom',     cat:'package', name:'Custom Box',         price:90, icon:'◆', desc:'You choose — we curate and ship.' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -232,6 +232,18 @@ input::placeholder,textarea::placeholder{color:#b0988a;}
 select option{background:#fff;color:#1a1208;}
 .day-cell:hover{background:#ece4d6!important;}
 .lift:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,0.1)!important;transition:transform 0.18s,box-shadow 0.18s;}
+@media(max-width:600px){
+  .modal-card{max-width:100%!important;border-radius:18px 18px 0 0!important;position:fixed!important;bottom:0!important;left:0!important;right:0!important;max-height:92vh!important;}
+  .overlay-inner{align-items:flex-end!important;padding:0!important;}
+  .clock-row{flex-direction:column!important;}
+  .pill-row{gap:5px!important;}
+  .cal-grid-cell{min-height:40px!important;}
+  .dual-clock-sep{display:none!important;}
+  .admin-grid{grid-template-columns:1fr!important;}
+}
+@media(min-width:601px) and (max-width:900px){
+  .cal-max{max-width:700px!important;}
+}
 `;
 
 // ─── Small reusable atoms ────────────────────────────────────────────────────
@@ -239,10 +251,10 @@ const Label = ({children,color=T.text3})=>(
   <div style={{fontSize:'11px',letterSpacing:'0.14em',color,textTransform:'uppercase',marginBottom:'7px',fontWeight:600}}>{children}</div>
 );
 const Overlay = ({onClose,zIndex=200,children})=>(
-  <div style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex,padding:'20px',backdropFilter:'blur(4px)'}} onClick={onClose}>{children}</div>
+  <div className="overlay-inner" style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex,padding:'20px',backdropFilter:'blur(4px)'}} onClick={onClose}>{children}</div>
 );
 const Card = ({children,style={}})=>(
-  <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'28px',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',...style}}>{children}</div>
+  <div className="modal-card" style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'clamp(18px,4vw,28px)',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',...style}}>{children}</div>
 );
 
 // ─── TzSelect ────────────────────────────────────────────────────────────────
@@ -414,7 +426,7 @@ function TrafficAlert({event,homeLocation}) {
 }
 
 // ─── EventModal ───────────────────────────────────────────────────────────────
-function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,onClose,onSave,onDelete}) {
+function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,onClose,onSave,onDelete}) {
   const [title,     setTitle]     = useState(event?.title      || '');
   const [date,      setDate]      = useState(event?.date       || '');
   const [time,      setTime]      = useState(event?.time       || '12:00');
@@ -472,11 +484,18 @@ function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,onClose,onSave,onD
           </div>
         </div>
 
+        {plan==='free'&&!event?.id&&eventCount>=10&&(
+          <div style={{background:'#fdf0f0',border:'1px solid #e0b0b0',borderRadius:'10px',padding:'12px 14px',marginTop:'12px',fontSize:'13px',color:T.danger}}>
+            Free plan is limited to 10 events.{' '}
+            <strong>Upgrade to Plus</strong> for unlimited events.
+          </div>
+        )}
         <div style={{display:'flex',gap:'8px',marginTop:'22px'}}>
           {event?.id&&<button onClick={()=>onDelete(event.id)} style={DB}>Delete</button>}
           <div style={{flex:1}}/>
           <button onClick={onClose} style={GB()}>Cancel</button>
-          <button onClick={()=>{if(!title||!date)return;onSave({id:event?.id||Date.now(),title,date,time,tz,recurrence,location,color,note});}} style={PB()}>Save</button>
+          <button onClick={()=>{if(!title||!date)return;if(plan==='free'&&!event?.id&&eventCount>=10)return;onSave({id:event?.id||Date.now(),title,date,time,tz,recurrence,location,color,note});}} style={PB({opacity:plan==='free'&&!event?.id&&eventCount>=10?0.4:1})}>Save</button>
+
         </div>
       </Card>
     </Overlay>
@@ -542,7 +561,7 @@ function NotesWall({notes,labelA,labelB,onClose,onAdd,onDelete}) {
           <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'20px'}}>&#10005;</button>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:'12px'}}>
-          {notes.length===0&&<div style={{textAlign:'center',padding:'40px 20px',color:T.text4,fontFamily:"'Cormorant Garamond',serif",fontSize:'17px',fontStyle:'italic'}}>No notes yet — write the first one ❧</div>}
+          {notes.length===0&&<div style={{textAlign:'center',padding:'40px 20px',color:T.text4,fontFamily:"'Cormorant Garamond',serif",fontSize:'17px',fontStyle:'italic'}}>No notes yet — write the first one</div>}
           {notes.map(n=>{const isA=n.from==='A',nm=isA?labelA:labelB,col=isA?T.accent:T.rose;return(
             <div key={n.id} style={{display:'flex',flexDirection:'column',alignItems:isA?'flex-start':'flex-end'}}>
               <div style={{maxWidth:'80%',background:isA?'#fff':`${T.rose}0f`,border:`1px solid ${isA?T.border:`${T.rose}30`}`,borderRadius:isA?'4px 18px 18px 18px':'18px 4px 18px 18px',padding:'14px 16px'}}>
@@ -585,7 +604,7 @@ function LoveNoteSplash({notes,labelA,labelB,onClose}) {
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:'24px',backdropFilter:'blur(6px)'}} onClick={onClose}>
       <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'24px',padding:'40px 36px',width:'100%',maxWidth:'400px',textAlign:'center',boxShadow:'0 32px 80px rgba(0,0,0,0.2)'}} onClick={e=>e.stopPropagation()}>
-        <div style={{fontSize:'32px',color:T.rose,marginBottom:'16px'}}>❧</div>
+        <div style={{fontSize:'32px',color:T.rose,marginBottom:'16px'}}>&#9825;</div>
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'13px',letterSpacing:'0.25em',color:T.text4,textTransform:'uppercase',marginBottom:'6px'}}>A note from</div>
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',fontWeight:600,color:fromColor,marginBottom:'24px'}}>{fromName}</div>
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',fontStyle:'italic',color:T.text1,lineHeight:1.6,marginBottom:'8px',padding:'0 8px'}}>"{latest.text}"</div>
@@ -612,7 +631,7 @@ function GiftModal({partnerName,onClose}) {
   if(sent){
     return(
       <Overlay onClose={onClose}><Card style={{maxWidth:'380px',textAlign:'center'}}>
-        <div style={{fontSize:'36px',color:T.rose,marginBottom:'14px'}}>❧</div>
+        <div style={{fontSize:'36px',color:T.rose,marginBottom:'14px'}}>&#9825;</div>
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'24px',color:T.text1,marginBottom:'8px',fontWeight:600}}>On its way to {partnerName}</div>
         <div style={{fontSize:'13px',color:T.text2,marginBottom:'12px'}}>Your {item?.name.toLowerCase()} is scheduled for {date}.</div>
         <div style={{fontSize:'13px',color:T.text3,fontStyle:'italic',marginBottom:'24px',padding:'12px',background:T.surface,borderRadius:'10px'}}>"{note||'Thinking of you.'}"</div>
@@ -630,7 +649,7 @@ function GiftModal({partnerName,onClose}) {
       <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>Delivered directly to {partnerName}'s door.</div>
 
       <div style={{display:'flex',gap:'6px',marginBottom:'18px',flexWrap:'wrap'}}>
-        {[{id:'flowers',label:'❧ Flowers'},{id:'package',label:'◈ Care Packages'},{id:'affiliate',label:'&#9671; Partner Gifts'}].map(t=>(
+        {[{id:'flowers',label:'Flowers'},{id:'package',label:'Care Packages'},{id:'affiliate',label:'Partner Gifts'}].map(t=>(
           <button key={t.id} onClick={()=>{setTab(t.id);setSelected(null);}} style={{...GB({flex:1,textAlign:'center',padding:'9px 10px',minWidth:'90px'}),background:tab===t.id?`${T.rose}15`:T.surface2,border:`1px solid ${tab===t.id?`${T.rose}60`:T.border}`,color:tab===t.id?T.rose:T.text3,fontWeight:tab===t.id?700:400}} dangerouslySetInnerHTML={{__html:t.label}}/>
         ))}
       </div>
@@ -677,27 +696,93 @@ function GiftModal({partnerName,onClose}) {
   );
 }
 
-// ─── ShareModal ───────────────────────────────────────────────────────────────
-function ShareModal({tzA,tzB,labelA,labelB,events,onClose}) {
-  const url=`${window.location.origin}${window.location.pathname}?cal=${encodeShare({tzA,tzB,labelA,labelB,events})}`;
-  const [copied,setCopied]=useState(false);
+// ─── ShareModal (invite link — recipient must create an account) ──────────────
+function ShareModal({tzA,labelA,onClose,plan}) {
+  const inviteData = encodeShare({type:'invite',fromName:labelA,fromTz:tzA,ts:Date.now()});
+  const url = `${window.location.origin}${window.location.pathname}?invite=${inviteData}`;
+  const [copied,setCopied] = useState(false);
   async function copy(){try{await navigator.clipboard.writeText(url);setCopied(true);setTimeout(()=>setCopied(false),2500);}catch{}}
+  const canShare = plan==='plus'||plan==='pro';
   return(
     <Overlay onClose={onClose}><Card style={{maxWidth:'430px'}}>
       <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600}}>Share with {labelB}</div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600}}>Share Your Calendar</div>
         <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'18px'}}>&#10005;</button>
       </div>
-      <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>This link carries all your events, timezones, and names.</div>
-      <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'12px 14px',marginBottom:'18px'}}>
-        <div style={{fontSize:'11px',color:T.text4,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:'5px',fontWeight:600}}>Link</div>
-        <div style={{fontSize:'12px',color:T.sky,wordBreak:'break-all',lineHeight:1.5}}>{url.length>90?`${url.slice(0,70)}...`:url}</div>
-      </div>
-      <div style={{display:'flex',gap:'8px'}}>
-        <button onClick={onClose} style={GB()}>Close</button>
-        <button onClick={copy} style={PB({flex:1,textAlign:'center',background:copied?T.sage:T.sky})}>{copied?'Copied &#10003;':'Copy Link'}</button>
-      </div>
+      {!canShare?(
+        <div>
+          <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>Calendar sharing is available on Ophelia Plus and Pro.</div>
+          <div style={{background:`${T.accent}0e`,border:`1px solid ${T.accent}30`,borderRadius:'12px',padding:'16px',marginBottom:'20px'}}>
+            <div style={{fontSize:'13px',fontWeight:700,color:T.accent,marginBottom:'4px'}}>Upgrade to Plus — $2.99/mo</div>
+            <div style={{fontSize:'12px',color:T.text3}}>Share your calendar with 1 person via invite link. They must create a free Ophelia account to connect.</div>
+          </div>
+          <button onClick={onClose} style={GB({width:'100%',textAlign:'center'})}>Close</button>
+        </div>
+      ):(
+        <div>
+          <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>
+            Send this link to your person. They will need to create a free Ophelia account to connect your calendars. Your calendar is private until they accept.
+          </div>
+          <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'12px 14px',marginBottom:'18px'}}>
+            <div style={{fontSize:'11px',color:T.text4,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:'5px',fontWeight:600}}>Invite Link</div>
+            <div style={{fontSize:'12px',color:T.sky,wordBreak:'break-all',lineHeight:1.5}}>{url.length>90?`${url.slice(0,70)}...`:url}</div>
+          </div>
+          <div style={{fontSize:'12px',color:T.text4,marginBottom:'16px',padding:'10px 12px',background:T.surface,borderRadius:'10px',lineHeight:1.6}}>
+            &#9671; Recipient must sign up for Ophelia to accept<br/>
+            &#9671; Your calendar stays private until they connect
+          </div>
+          <div style={{display:'flex',gap:'8px'}}>
+            <button onClick={onClose} style={GB()}>Close</button>
+            <button onClick={copy} style={PB({flex:1,textAlign:'center',background:copied?T.sage:T.sky})}>{copied?'Copied ✓':'Copy Invite Link'}</button>
+          </div>
+        </div>
+      )}
     </Card></Overlay>
+  );
+}
+
+// ─── InviteScreen — shown when someone lands on ?invite= link ─────────────────
+function InviteScreen({inviteData,onAccept}) {
+  const [mode,  setMode]  = useState('signup');
+  const [email, setEmail] = useState('');
+  const [pass,  setPass]  = useState('');
+  const [name,  setName]  = useState('');
+  const [err,   setErr]   = useState('');
+  const from = inviteData?.fromName || 'Someone';
+
+  function handleSubmit(e){
+    e.preventDefault();
+    if(!email||!pass||!name){setErr('Please fill in all fields.');return;}
+    setErr('');
+    const user={id:Date.now(),email,name,authMethod:'email',plan:'free'};
+    const stored=LS.get('ophelia_users',[]);
+    if(!stored.find(u=>u.email===email)) LS.set('ophelia_users',[...stored,user]);
+    onAccept(user,inviteData);
+  }
+
+  return(
+    <div style={{minHeight:'100vh',background:T.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px',fontFamily:"'DM Sans',sans-serif"}}>
+      <div style={{maxWidth:'400px',width:'100%'}}>
+        <div style={{textAlign:'center',marginBottom:'32px'}}>
+          <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(40px,10vw,64px)',fontWeight:300,color:T.text1,lineHeight:0.9,letterSpacing:'-0.02em',marginBottom:'12px'}}>Ophelia</h1>
+          <div style={{background:`${T.accent}0e`,border:`1px solid ${T.accent}30`,borderRadius:'14px',padding:'16px 20px',marginBottom:'8px'}}>
+            <div style={{fontSize:'13px',color:T.text3,marginBottom:'4px'}}>You have been invited by</div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.accent,fontWeight:600}}>{from}</div>
+            <div style={{fontSize:'12px',color:T.text3,marginTop:'6px'}}>Create a free account to connect your calendars.</div>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+          <input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)} style={IS()}/>
+          <input type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} style={IS()}/>
+          <input type="password" placeholder="Create a password (8+ characters)" value={pass} onChange={e=>setPass(e.target.value)} style={IS()}/>
+          {err&&<div style={{fontSize:'12px',color:T.danger,background:'#fdf0f0',border:'1px solid #e0b0b0',borderRadius:'8px',padding:'8px 12px'}}>{err}</div>}
+          <button type="submit" style={PB({width:'100%',padding:'13px',textAlign:'center',borderRadius:'12px'})}>Create Account & Connect &#8594;</button>
+        </form>
+        <div style={{textAlign:'center',marginTop:'20px',fontSize:'12px',color:T.text4,lineHeight:1.6}}>
+          Your calendar is private. Only {from} can see your shared events after you connect.
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -708,7 +793,7 @@ function AdminPanel({onClose}) {
   const [passErr,setPassErr]=useState(false);
   const [tab,setTab]=useState('overview');
   const [affPkgs,setAffPkgs]=useState(()=>LS.get('ophelia_affiliate_packages',[]));
-  const [newPkg,setNewPkg]=useState({name:'',affiliateId:'',price:'',desc:'',affiliateUrl:'',commission:'',icon:'❧'});
+  const [newPkg,setNewPkg]=useState({name:'',affiliateId:'',price:'',desc:'',affiliateUrl:'',commission:'',icon:'✦'});
   const users=LS.get('ophelia_users',[]);
 
   function login(){if(pass===ADMIN_PASSCODE){setAuthed(true);setPassErr(false);}else setPassErr(true);}
@@ -718,7 +803,7 @@ function AdminPanel({onClose}) {
     const pkg={...newPkg,id:`aff_${Date.now()}`,cat:'affiliate',price:Number(newPkg.price)};
     const updated=[...affPkgs,pkg];
     setAffPkgs(updated);LS.set('ophelia_affiliate_packages',updated);
-    setNewPkg({name:'',affiliateId:'',price:'',desc:'',affiliateUrl:'',commission:'',icon:'❧'});
+    setNewPkg({name:'',affiliateId:'',price:'',desc:'',affiliateUrl:'',commission:'',icon:'✦'});
   }
   function removePkg(id){const u=affPkgs.filter(p=>p.id!==id);setAffPkgs(u);LS.set('ophelia_affiliate_packages',u);}
 
@@ -894,7 +979,7 @@ function Onboarding({onComplete}) {
   const progress=[0,25,50,75,100][step];
 
   return(
-    <div style={{minHeight:'100vh',zoom:'120%',background:T.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px',fontFamily:"'DM Sans',sans-serif"}}>
+    <div style={{minHeight:'100vh',background:T.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px',fontFamily:"'DM Sans',sans-serif"}}>
       {step>0&&<div style={{position:'fixed',top:0,left:0,right:0,height:'3px',background:T.border,zIndex:10}}><div style={{height:'100%',width:`${progress}%`,background:T.accent,transition:'width 0.4s ease'}}/></div>}
       <div style={{maxWidth:'520px',width:'100%'}}>
 
@@ -904,7 +989,7 @@ function Onboarding({onComplete}) {
             <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(56px,12vw,80px)',fontWeight:300,color:T.text1,lineHeight:0.9,letterSpacing:'-0.02em',marginBottom:'8px'}}>Ophelia</h1>
             <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'17px',color:T.text3,fontStyle:'italic',marginBottom:'40px'}}>your everyday calendar</div>
             <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'36px',textAlign:'left'}}>
-              {[['◇','Made for people who live across time zones'],['⊕','Real-time traffic alerts — know when to leave'],['❧','Send flowers, gifts, and love notes between cities']].map(([icon,text])=>(
+              {[['◇','Made for people who live across time zones'],['⊕','Real-time traffic alerts — know when to leave'],['✦','Send flowers, gifts, and love notes between cities']].map(([icon,text])=>(
                 <div key={text} style={{display:'flex',gap:'14px',alignItems:'center',background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',padding:'14px 16px'}}>
                   <span style={{color:T.accent,fontSize:'18px',width:'22px',textAlign:'center',flexShrink:0}}>{icon}</span>
                   <span style={{fontSize:'14px',color:T.text2,fontWeight:500}}>{text}</span>
@@ -912,7 +997,7 @@ function Onboarding({onComplete}) {
               ))}
             </div>
             <button onClick={()=>setStep(1)} style={PB({padding:'14px 52px',fontSize:'15px',borderRadius:'40px',letterSpacing:'0.08em'})}>Get Started</button>
-            <div style={{fontSize:'12px',color:T.text4,marginTop:'12px'}}>1 month free &mdash; then $3.99 / month</div>
+            <div style={{fontSize:'12px',color:T.text4,marginTop:'12px'}}>Start free &mdash; Plus from $2.99 / month</div>
           </div>
         )}
 
@@ -1049,7 +1134,7 @@ function Calendar({config,onReset}) {
   return(
     <>
       <div style={{minHeight:'100vh',background:T.bg,fontFamily:"'DM Sans',sans-serif",color:T.text1}}>
-        <div style={{maxWidth:'840px',margin:'0 auto',padding:'28px 18px 80px'}}>
+        <div className="cal-max" style={{maxWidth:'840px',margin:'0 auto',padding:'clamp(16px,4vw,28px) clamp(12px,4vw,18px) 80px'}}>
 
           {/* Header */}
           <div style={{textAlign:'center',marginBottom:'28px'}}>
@@ -1062,9 +1147,9 @@ function Calendar({config,onReset}) {
           {/* Dual clocks */}
           {!isLocal&&(
             <>
-              <div style={{display:'flex',gap:'10px',marginBottom:'8px'}}>
+              <div className="clock-row" style={{display:'flex',gap:'10px',marginBottom:'8px'}}>
                 <Clock tz={activeTzA} accent={T.accent} label={`${labelA} · ${TIMEZONES.find(t=>t.value===activeTzA)?.label||activeTzA}`} tag={travelMode?'traveling':undefined}/>
-                <div style={{display:'flex',alignItems:'center',flexShrink:0,color:T.border2,fontSize:'20px'}}>&#8596;</div>
+                <div className="dual-clock-sep" style={{display:'flex',alignItems:'center',flexShrink:0,color:T.border2,fontSize:'20px'}}>&#8596;</div>
                 <Clock tz={tzB} accent={accentB} label={`${labelB} · ${TIMEZONES.find(t=>t.value===tzB)?.label||tzB}`}/>
               </div>
               <div style={{textAlign:'center',fontSize:'12px',color:T.text4,marginBottom:'22px'}}>&#9670; {tzDiff(tzA,tzB,labelB)}</div>
@@ -1073,12 +1158,12 @@ function Calendar({config,onReset}) {
           {isLocal&&<div style={{marginBottom:'22px'}}><Clock tz={tzA} accent={T.sage} label={`${labelA} · ${TIMEZONES.find(t=>t.value===tzA)?.label||tzA}`}/></div>}
 
           {/* Action pills */}
-          <div style={{display:'flex',gap:'7px',justifyContent:'center',flexWrap:'wrap',marginBottom:'22px'}}>
+          <div className="pill-row" style={{display:'flex',gap:'7px',justifyContent:'center',flexWrap:'wrap',marginBottom:'22px'}}>
             <button style={SB(panel==='settings')} onClick={()=>setPanel(p=>p==='settings'?null:'settings')}>&#9965;&ensp;Settings</button>
             {(isTraveler||hasPartner)&&<button style={SB(travelMode,T.sage)} onClick={()=>setTravelMode(v=>!v)}>&#8853;&ensp;Travel Mode</button>}
             {(hasPartner||isTraveler)&&<button style={SB(panel==='meeting',T.lavender)} onClick={()=>setPanel(p=>p==='meeting'?null:'meeting')}>&#9737;&ensp;Best Times</button>}
             {(hasPartner||isTraveler)&&<button style={SB(panel==='share',T.sky)} onClick={()=>setPanel(p=>p==='share'?null:'share')}>&#8618;&ensp;Share</button>}
-            {hasPartner&&<button style={SB(showGift,T.rose)} onClick={()=>setShowGift(true)}>❧&ensp;Send a Gift</button>}
+            {hasPartner&&<button style={SB(showGift,T.rose)} onClick={()=>setShowGift(true)}>&#9825;&ensp;Send a Gift</button>}
             {hasPartner&&<button style={SB(showNotes,T.lavender)} onClick={()=>setShowNotes(true)}>&#9825;&ensp;Love Notes{notes.length>0&&<span style={{background:T.lavender,color:'#fff',borderRadius:'20px',padding:'1px 6px',fontSize:'10px',fontWeight:700,marginLeft:'4px'}}>{notes.length}</span>}</button>}
           </div>
 
@@ -1123,7 +1208,7 @@ function Calendar({config,onReset}) {
                 const ds=day?`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`:'' ;
                 const isToday=ds===todayStr, isSel=selectedDay===day;
                 return(
-                  <div key={idx} className="day-cell" onClick={()=>day&&setSelectedDay(day===selectedDay?null:day)} style={{minHeight:'54px',padding:'5px 4px',borderRadius:'9px',cursor:day?'pointer':'default',background:isSel?`${T.accent}18`:isToday?`${T.accent}0e`:'transparent',border:isToday?`1.5px solid ${T.accent}50`:'1.5px solid transparent',transition:'background 0.12s'}}>
+                  <div key={idx} className="day-cell cal-grid-cell" onClick={()=>day&&setSelectedDay(day===selectedDay?null:day)} style={{minHeight:'54px',padding:'5px 4px',borderRadius:'9px',cursor:day?'pointer':'default',background:isSel?`${T.accent}18`:isToday?`${T.accent}0e`:'transparent',border:isToday?`1.5px solid ${T.accent}50`:'1.5px solid transparent',transition:'background 0.12s'}}>
                     {day&&(
                       <>
                         <div style={{fontSize:'13px',color:isToday?T.accent:T.text1,fontWeight:isToday?700:500,textAlign:'center',marginBottom:'3px'}}>{day}</div>
@@ -1187,9 +1272,9 @@ function Calendar({config,onReset}) {
       </div>
 
       {/* Modals */}
-      {modal!==null&&<EventModal event={modal} tzA={tzA} tzB={isLocal?null:tzB} labelA={labelA} labelB={labelB} homeLocation={homeLocation} onClose={()=>setModal(null)} onSave={ev=>{setEvents(prev=>{const ex=prev.find(i=>i.id===ev.id);return ex?prev.map(i=>i.id===ev.id?ev:i):[...prev,ev];});setModal(null);}} onDelete={id=>{setEvents(prev=>prev.filter(e=>e.id!==id));setModal(null);}}/>}
+      {modal!==null&&<EventModal event={modal} tzA={tzA} tzB={isLocal?null:tzB} labelA={labelA} labelB={labelB} homeLocation={homeLocation} plan={config?.plan||'free'} eventCount={events.length} onClose={()=>setModal(null)} onSave={ev=>{setEvents(prev=>{const ex=prev.find(i=>i.id===ev.id);return ex?prev.map(i=>i.id===ev.id?ev:i):[...prev,ev];});setModal(null);}} onDelete={id=>{setEvents(prev=>prev.filter(e=>e.id!==id));setModal(null);}}/>}
       {panel==='meeting'&&<MeetingFinder tzA={activeTzA} tzB={tzB} labelA={labelA} labelB={labelB} onClose={()=>setPanel(null)}/>}
-      {panel==='share'&&<ShareModal tzA={tzA} tzB={tzB} labelA={labelA} labelB={labelB} events={events} onClose={()=>setPanel(null)}/>}
+      {panel==='share'&&<ShareModal tzA={tzA} labelA={labelA} plan={config?.plan||'free'} onClose={()=>setPanel(null)}/>}
       {showGift&&<GiftModal partnerName={labelB} onClose={()=>setShowGift(false)}/>}
       {showNotes&&<NotesWall notes={notes} labelA={labelA} labelB={labelB} onClose={()=>setShowNotes(false)} onAdd={note=>setNotes(prev=>[...prev,note])} onDelete={id=>setNotes(prev=>prev.filter(n=>n.id!==id))}/>}
       {showSplash&&<LoveNoteSplash notes={notes} labelA={labelA} labelB={labelB} onClose={()=>setShowSplash(false)}/>}
@@ -1213,23 +1298,46 @@ export default function Ophelia() {
     return 'calendar';
   });
   const [config,setConfig]=useState(()=>LS.get('ophelia_config',null));
+  const [inviteData,setInviteData]=useState(null);
 
   useEffect(()=>{
-    // Handle shared calendar URL
-    const cal=new URLSearchParams(window.location.search).get('cal');
-    if(cal){const d=decodeShare(cal);if(d){const cfg={types:['couple'],name:d.labelA||'You',partnerName:d.labelB||'Them',tzA:d.tzA,tzB:d.tzB,homeLocation:'',plan:'plus',user:{id:Date.now(),name:d.labelA||'You',authMethod:'share'}};LS.set('ophelia_config',cfg);setConfig(cfg);setScreen('calendar');}}
+    const params=new URLSearchParams(window.location.search);
+    // Handle invite link
+    const inv=params.get('invite');
+    if(inv){const d=decodeShare(inv);if(d&&d.type==='invite'){setInviteData(d);setScreen('invite');return;}}
     // Admin shortcut
-    if(new URLSearchParams(window.location.search).get('admin')==='1') setScreen('calendar');
+    if(params.get('admin')==='1') setScreen('calendar');
     // PWA service worker
     if('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
   },[]);
 
   function handleAuth(user) {
-    // New user after auth → go through onboarding
     setScreen('onboarding');
     LS.set('ophelia_auth_user',user);
     const existing=LS.get('ophelia_users',[]);
     if(!existing.find(u=>u.id===user.id)) LS.set('ophelia_users',[...existing,user]);
+  }
+
+  function handleInviteAccept(user,inv) {
+    // Connect as a couple — recipient becomes "you", inviter is "partner"
+    LS.set('ophelia_auth_user',user);
+    const existing=LS.get('ophelia_users',[]);
+    if(!existing.find(u=>u.id===user.id)) LS.set('ophelia_users',[...existing,user]);
+    const cfg={
+      types:['couple'],
+      name:user.name,
+      partnerName:inv.fromName||'Partner',
+      tzA:LS.get('ophelia_config',null)?.tzA||'America/New_York',
+      tzB:inv.fromTz||'America/New_York',
+      homeLocation:'',
+      plan:'free',
+      user:{...user,plan:'free'},
+      connectedViaInvite:true,
+    };
+    LS.set('ophelia_config',cfg);
+    setConfig(cfg);
+    setScreen('calendar');
+    window.history.replaceState({},'',window.location.pathname);
   }
 
   function handleOnboarding(cfg) {
@@ -1248,9 +1356,10 @@ export default function Ophelia() {
   return(
     <>
       <style>{CSS}</style>
-      {screen==='auth'     && <AuthScreen onComplete={handleAuth}/>}
-      {screen==='onboarding'&&<Onboarding onComplete={handleOnboarding}/>}
-      {screen==='calendar' && config && <Calendar config={config} onReset={handleReset}/>}
+      {screen==='auth'      && <AuthScreen onComplete={handleAuth}/>}
+      {screen==='invite'    && <InviteScreen inviteData={inviteData} onAccept={handleInviteAccept}/>}
+      {screen==='onboarding'&& <Onboarding onComplete={handleOnboarding}/>}
+      {screen==='calendar'  && config && <Calendar config={config} onReset={handleReset}/>}
     </>
   );
 }
