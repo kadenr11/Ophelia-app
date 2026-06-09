@@ -195,6 +195,9 @@ const GIFT_ITEMS = [
 const BETA_CODES = [
   'OPHELIA-BETA1','OPHELIA-BETA2','OPHELIA-BETA3','OPHELIA-BETA4','OPHELIA-BETA5',
   'OPHELIA-BETA6','OPHELIA-BETA7','OPHELIA-BETA8','OPHELIA-BETA9','OPHELIA-BETA10',
+  'OPHELIA-BETA11','OPHELIA-BETA12','OPHELIA-BETA13','OPHELIA-BETA14','OPHELIA-BETA15',
+  'OPHELIA-BETA16','OPHELIA-BETA17','OPHELIA-BETA18','OPHELIA-BETA19','OPHELIA-BETA20',
+  'OPHELIA-BETA21','OPHELIA-BETA22','OPHELIA-BETA23','OPHELIA-BETA24','OPHELIA-BETA25',
 ];
 function checkBetaCode(code){ return BETA_CODES.includes(code?.trim().toUpperCase()); }
 
@@ -589,13 +592,13 @@ function AuthScreen({onComplete}) {
           <input type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} style={IS()} />
           <input type="password" placeholder="Password (8+ characters)" value={pass} onChange={e=>setPass(e.target.value)} style={IS()} />
 
+          <div>
+            <input placeholder="Promo / beta code (optional)" value={promo} onChange={e=>setPromo(e.target.value)} style={IS({borderColor:promo&&checkBetaCode(promo)?T.sage:undefined})} />
+            {promo&&checkBetaCode(promo)&&<div style={{fontSize:'12px',color:T.sage,marginTop:'5px',fontWeight:600}}>&#10003; Beta code valid — Ophelia Plus unlocked free</div>}
+            {promo&&!checkBetaCode(promo)&&<div style={{fontSize:'12px',color:T.text4,marginTop:'5px'}}>Code not recognised</div>}
+          </div>
           {mode==='signup'&&(
             <>
-              <div>
-                <input placeholder="Promo / beta code (optional)" value={promo} onChange={e=>setPromo(e.target.value)} style={IS({borderColor:promo&&checkBetaCode(promo)?T.sage:undefined})} />
-                {promo&&checkBetaCode(promo)&&<div style={{fontSize:'12px',color:T.sage,marginTop:'5px',fontWeight:600}}>&#10003; Beta code valid — Ophelia Plus unlocked free</div>}
-                {promo&&!checkBetaCode(promo)&&<div style={{fontSize:'12px',color:T.text4,marginTop:'5px'}}>Code not recognised</div>}
-              </div>
               <div>
                 <input type="tel" placeholder="Phone number (optional)" value={phone} onChange={e=>setPhone(e.target.value)} style={IS()} />
                 <div style={{fontSize:'11px',color:T.text4,marginTop:'5px',lineHeight:1.5}}>For urgent alerts like major traffic delays. Never used for marketing.</div>
@@ -2093,7 +2096,11 @@ class ErrorBoundary extends React.Component {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 function OpheliaApp() {
-  const [screen, setScreen] = useState('auth');
+  const [screen, setScreen] = useState(()=>{
+    const cfg=LS.get('ophelia_config',null);
+    if(!cfg) return 'auth';
+    return 'calendar';
+  });
   const [config,setConfig]=useState(()=>LS.get('ophelia_config',null));
   const [inviteData,setInviteData]=useState(null);
 
@@ -2112,14 +2119,7 @@ function OpheliaApp() {
     LS.set('ophelia_auth_user',user);
     const existing=LS.get('ophelia_users',[]);
     if(!existing.find(u=>u.id===user.id)) LS.set('ophelia_users',[...existing,user]);
-    // If user already has a saved config, go straight to their calendar
-    const savedCfg=LS.get('ophelia_config',null);
-    if(savedCfg && savedCfg.user?.email===user.email) {
-      setConfig(savedCfg);
-      setScreen('calendar');
-    } else {
-      setScreen('onboarding');
-    }
+    setScreen('onboarding');
   }
 
   function handleInviteAccept(user,inv) {
