@@ -186,7 +186,15 @@ const GIFT_ITEMS = [
   { id:'custom',     cat:'package', name:'Custom Box',         price:90, icon:'◆', desc:'You choose — we curate and ship.' },
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Beta promo codes (give to friends for free Plus access) ─────────────────
+const BETA_CODES = [
+  'OPHELIA-BETA1','OPHELIA-BETA2','OPHELIA-BETA3','OPHELIA-BETA4','OPHELIA-BETA5',
+  'OPHELIA-BETA6','OPHELIA-BETA7','OPHELIA-BETA8','OPHELIA-BETA9','OPHELIA-BETA10',
+];
+function checkBetaCode(code){ return BETA_CODES.includes(code?.trim().toUpperCase()); }
+
+// ─── Simple password hash (not cryptographic — replace with Firebase auth in prod) ─
+function hashPass(p){ let h=0;for(let i=0;i<p.length;i++){h=Math.imul(31,h)+p.charCodeAt(i)|0;}return h.toString(36); }
 function fmt(date, tz, opts={}) {
   try   { return new Intl.DateTimeFormat('en-US',{timeZone:tz,...opts}).format(date); }
   catch { return '–'; }
@@ -280,6 +288,7 @@ function AuthScreen({onComplete}) {
   const [pass,   setPass]   = useState('');
   const [name,   setName]   = useState('');
   const [phone,  setPhone]  = useState('');
+  const [promo,  setPromo]  = useState('');
   const [smsOk,  setSmsOk]  = useState(false);
   const [pushOk, setPushOk] = useState(false);
   const [err,    setErr]    = useState('');
@@ -293,13 +302,33 @@ function AuthScreen({onComplete}) {
   async function handleEmail(e) {
     e.preventDefault();
     if(!email||!pass) { setErr('Please fill in all fields.'); return; }
-    if(mode==='signup'&&!name) { setErr('Please enter your name.'); return; }
+    const key = email.trim().toLowerCase();
+    const stored = LS.get('ophelia_users',[]);
+    const existing = stored.find(u=>u.email.toLowerCase()===key);
+
+    if(mode==='signin') {
+      if(!existing) { setErr('No account found with that email. Create one below.'); return; }
+      if(existing.passHash && existing.passHash !== hashPass(pass)) { setErr('Incorrect password.'); return; }
+      onComplete(existing);
+      return;
+    }
+
+    // signup
+    if(!name) { setErr('Please enter your name.'); return; }
+    if(pass.length < 8) { setErr('Password must be at least 8 characters.'); return; }
+    if(existing) { setErr('An account with that email already exists. Sign in instead.'); return; }
+    const betaValid = checkBetaCode(promo);
     setErr('');
     let pushGranted = false;
-    if(mode==='signup'&&pushOk) pushGranted = await requestPush();
-    const user = { id:Date.now(), email, name:name||email.split('@')[0], authMethod:'email', phone:phone||'', smsConsent:smsOk, pushEnabled:pushGranted };
-    const stored = LS.get('ophelia_users',[]);
-    if(!stored.find(u=>u.email===email)) LS.set('ophelia_users',[...stored,user]);
+    if(pushOk) pushGranted = await requestPush();
+    const user = {
+      id: Date.now(), email: key, name: name||key.split('@')[0],
+      authMethod:'email', passHash: hashPass(pass),
+      phone: phone||'', smsConsent:smsOk, pushEnabled:pushGranted,
+      plan: betaValid ? 'plus' : 'free',
+      betaCode: betaValid ? promo.trim().toUpperCase() : null,
+    };
+    LS.set('ophelia_users',[...stored, user]);
     onComplete(user);
   }
 
@@ -342,6 +371,11 @@ function AuthScreen({onComplete}) {
 
           {mode==='signup'&&(
             <>
+              <div>
+                <input placeholder="Promo / beta code (optional)" value={promo} onChange={e=>setPromo(e.target.value)} style={IS({borderColor:promo&&checkBetaCode(promo)?T.sage:undefined})} />
+                {promo&&checkBetaCode(promo)&&<div style={{fontSize:'12px',color:T.sage,marginTop:'5px',fontWeight:600}}>&#10003; Beta code valid — Ophelia Plus unlocked free</div>}
+                {promo&&!checkBetaCode(promo)&&<div style={{fontSize:'12px',color:T.text4,marginTop:'5px'}}>Code not recognised</div>}
+              </div>
               <div>
                 <input type="tel" placeholder="Phone number (optional)" value={phone} onChange={e=>setPhone(e.target.value)} style={IS()} />
                 <div style={{fontSize:'11px',color:T.text4,marginTop:'5px',lineHeight:1.5}}>For urgent alerts like major traffic delays. Never used for marketing.</div>
@@ -1486,6 +1520,9 @@ function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEven
 // ─── Calendar ─────────────────────────────────────────────────────────────────
 function Calendar({config,onReset}) {
   const {types,name,partnerName,tzA:initA,tzB:initB,homeLocation}=config;
+  const userId = config?.user?.id || 'guest';
+  const evKey  = `ophelia_events_${userId}`;
+  const ntKey  = `ophelia_notes_${userId}`;
   const today=new Date();
   const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   const hasPartner=types.includes('couple'), isTraveler=types.includes('traveler'), isLocal=types.includes('local')&&!hasPartner&&!isTraveler;
@@ -1494,8 +1531,9 @@ function Calendar({config,onReset}) {
   const [tzB,setTzB]=useState(initB||'Australia/Melbourne');
   const [labelA,setLabelA]=useState(name||'You');
   const [labelB,setLabelB]=useState(partnerName||'Them');
-  const [events,setEvents]=useState(()=>LS.get('ophelia_events',[]));
-  const [notes,setNotes]=useState(()=>LS.get('ophelia_notes',[]));
+  const [events,setEvents]=useState(()=>LS.get(evKey,[]));
+  const [notes,setNotes]=useState(()=>LS.get(ntKey,[]));
+  const [calView,setCalView]=useState('month'); // 'day'|'week'|'month'|'year'
   const [viewMonth,setViewMonth]=useState(today.getMonth());
   const [viewYear,setViewYear]=useState(today.getFullYear());
   const [selectedDay,setSelectedDay]=useState(null);
@@ -1516,8 +1554,8 @@ function Calendar({config,onReset}) {
     if(adminTaps.current>=5){adminTaps.current=0;setShowAdmin(true);}
   }
 
-  useEffect(()=>{LS.set('ophelia_events',events);},[events]);
-  useEffect(()=>{LS.set('ophelia_notes',notes);},[notes]);
+  useEffect(()=>{LS.set(evKey,events);},[events]);
+  useEffect(()=>{LS.set(ntKey,notes);},[notes]);
 
   const activeTzA=travelMode?travelTz:tzA;
   const accentB=hasPartner?T.rose:isTraveler?T.sky:T.sage;
@@ -1597,17 +1635,31 @@ function Calendar({config,onReset}) {
             </div>
           )}
 
+          {/* View toggle */}
+          <div style={{display:'flex',gap:'4px',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'4px',marginBottom:'16px'}}>
+            {['day','week','month','year'].map(v=>(
+              <button key={v} onClick={()=>setCalView(v)} style={{flex:1,padding:'7px 4px',border:'none',borderRadius:'9px',cursor:'pointer',background:calView===v?'#fff':'transparent',color:calView===v?T.accent:T.text3,fontWeight:calView===v?700:400,fontSize:'12px',fontFamily:"'DM Sans',sans-serif",boxShadow:calView===v?'0 1px 4px rgba(0,0,0,0.1)':'none',transition:'all 0.15s',letterSpacing:'0.02em',textTransform:'capitalize'}}>
+                {v}
+              </button>
+            ))}
+          </div>
+
           {/* Calendar grid */}
           <div style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'20px',overflow:'hidden',marginBottom:'22px',boxShadow:'0 2px 16px rgba(0,0,0,0.07)'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px 14px',borderBottom:`1px solid ${T.border}`}}>
               <button onClick={prevMonth} style={{background:'none',border:'none',color:T.text3,fontSize:'22px',cursor:'pointer',padding:'2px 8px',lineHeight:1}}>&#8249;</button>
-              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600,letterSpacing:'0.02em'}}>{MONTHS[viewMonth]}&ensp;<span style={{color:T.text4,fontWeight:300}}>{viewYear}</span></div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600,letterSpacing:'0.02em'}}>
+                {calView==='day'&&`${MONTHS[viewMonth]} ${selectedDay||today.getDate()}, ${viewYear}`}
+                {calView==='week'&&`Week of ${MONTHS[viewMonth]} ${viewMonth===today.getMonth()&&viewYear===today.getFullYear()?today.getDate()-today.getDay()+1:1}`}
+                {calView==='month'&&<>{MONTHS[viewMonth]}&ensp;<span style={{color:T.text4,fontWeight:300}}>{viewYear}</span></>}
+                {calView==='year'&&<span style={{color:T.text4,fontWeight:300}}>{viewYear}</span>}
+              </div>
               <button onClick={nextMonth} style={{background:'none',border:'none',color:T.text3,fontSize:'22px',cursor:'pointer',padding:'2px 8px',lineHeight:1}}>&#8250;</button>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',padding:'10px 12px 2px'}}>
+            {calView==='month'&&<div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',padding:'10px 12px 2px'}}>
               {DAYS.map(d=><div key={d} style={{textAlign:'center',fontSize:'11px',letterSpacing:'0.1em',color:T.text4,textTransform:'uppercase',fontWeight:600}}>{d}</div>)}
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'2px',padding:'4px 10px 14px'}}>
+            </div>}
+            {calView==='month'&&<div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'2px',padding:'4px 10px 14px'}}>
               {cells.map((day,idx)=>{
                 const dayEvents=eventsForDay(day);
                 const ds=day?`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`:'' ;
@@ -1626,11 +1678,68 @@ function Calendar({config,onReset}) {
                   </div>
                 );
               })}
-            </div>
+            </div>}
           </div>
 
-          {/* Day detail */}
-          {selectedDay&&(()=>{
+          {/* ── Day view ── */}
+          {calView==='day'&&(()=>{
+            const d=selectedDay||today.getDate();
+            const ds=`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const evs=eventsForDay(d);
+            return(
+              <div style={{marginBottom:'22px'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',color:T.text1,fontWeight:600}}>{MONTHS[viewMonth]} {d}, {viewYear}</div>
+                  <button onClick={()=>setModal({date:ds})} style={PB({padding:'8px 16px',fontSize:'12px'})}>&#43; Add</button>
+                </div>
+                {Array.from({length:24},(_,h)=>{
+                  const hEvs=evs.filter(e=>{try{return parseInt(e.time?.split(':')[0])===h;}catch{return false;}});
+                  return(
+                    <div key={h} style={{display:'flex',gap:'10px',minHeight:'44px',borderBottom:`1px solid ${T.border}08`}}>
+                      <div style={{width:'44px',flexShrink:0,fontSize:'11px',color:T.text4,paddingTop:'4px',textAlign:'right'}}>{h===0?'12 am':h<12?`${h} am`:h===12?'12 pm':`${h-12} pm`}</div>
+                      <div style={{flex:1,paddingTop:'4px',display:'flex',flexDirection:'column',gap:'4px'}}>
+                        {hEvs.map(e=>(
+                          <div key={e.id} onClick={()=>setModal(e)} style={{background:e.color,color:'#fff',borderRadius:'8px',padding:'4px 10px',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>{e.title}</div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {/* ── Week view ── */}
+          {calView==='week'&&(()=>{
+            const ref=new Date(viewYear,viewMonth,selectedDay||today.getDate());
+            const startOfWeek=new Date(ref);startOfWeek.setDate(ref.getDate()-ref.getDay());
+            const days=Array.from({length:7},(_,i)=>{const d=new Date(startOfWeek);d.setDate(d.getDate()+i);return d;});
+            return(
+              <div style={{marginBottom:'22px'}}>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'4px',marginBottom:'8px'}}>
+                  {days.map((d,i)=>{
+                    const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                    const evs=events.filter(e=>e.date===ds);
+                    const isT=ds===todayStr;
+                    return(
+                      <div key={i} onClick={()=>{setViewMonth(d.getMonth());setViewYear(d.getFullYear());setSelectedDay(d.getDate());setCalView('day');}} style={{background:isT?`${T.accent}10`:'#fff',border:`1px solid ${isT?T.accent:T.border}`,borderRadius:'12px',padding:'8px 4px',cursor:'pointer',minHeight:'80px'}}>
+                        <div style={{fontSize:'10px',color:T.text4,textAlign:'center',textTransform:'uppercase',letterSpacing:'0.08em'}}>{['Su','Mo','Tu','We','Th','Fr','Sa'][i]}</div>
+                        <div style={{fontSize:'15px',color:isT?T.accent:T.text1,fontWeight:isT?700:500,textAlign:'center',marginBottom:'4px'}}>{d.getDate()}</div>
+                        {evs.slice(0,3).map(e=><div key={e.id} style={{background:e.color,borderRadius:'4px',height:'5px',marginBottom:'2px',marginInline:'4px'}}/>)}
+                        {evs.length>3&&<div style={{fontSize:'9px',color:T.text4,textAlign:'center'}}>+{evs.length-3}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── Month view (existing) ── */}
+          {(calView==='month'||calView==='year')&&null}
+
+          {/* Day detail (month view only) */}
+          {calView==='month'&&selectedDay&&(()=>{
             const dayEvents=eventsForDay(selectedDay);
             const ds=`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`;
             return(
@@ -1649,6 +1758,22 @@ function Calendar({config,onReset}) {
               </div>
             );
           })()}
+
+          {/* ── Year view ── */}
+          {calView==='year'&&(
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px',marginBottom:'22px'}}>
+              {MONTHS.map((m,mi)=>{
+                const evCount=events.filter(e=>e.date?.startsWith(`${viewYear}-${String(mi+1).padStart(2,'0')}`)).length;
+                const isCurrentMonth=mi===today.getMonth()&&viewYear===today.getFullYear();
+                return(
+                  <div key={m} onClick={()=>{setViewMonth(mi);setCalView('month');}} style={{background:isCurrentMonth?`${T.accent}10`:'#fff',border:`1px solid ${isCurrentMonth?T.accent:T.border}`,borderRadius:'14px',padding:'14px 10px',cursor:'pointer',textAlign:'center'}}>
+                    <div style={{fontSize:'13px',fontWeight:600,color:isCurrentMonth?T.accent:T.text1,marginBottom:'4px'}}>{m.slice(0,3)}</div>
+                    {evCount>0&&<div style={{fontSize:'11px',color:T.text3}}>{evCount} event{evCount!==1?'s':''}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Upcoming */}
           {upcoming.length>0&&(
