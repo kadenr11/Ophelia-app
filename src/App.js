@@ -222,7 +222,16 @@ function decodeShare(v) { try{return JSON.parse(decodeURIComponent(escape(atob(v
 function dateLabel(ds)  { try{return new Date(`${ds}T12:00`).toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch{return ds;} }
 
 const LS = {
-  get:(k,fb=null)=>{ try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;} },
+  get:(k,fb=null)=>{
+    try{
+      const v=localStorage.getItem(k);
+      if(!v) return fb;
+      const parsed=JSON.parse(v);
+      // If fallback is an array, ensure we return an array
+      if(Array.isArray(fb)&&!Array.isArray(parsed)) return fb;
+      return parsed??fb;
+    }catch{return fb;}
+  },
   set:(k,v)=>{ try{localStorage.setItem(k,JSON.stringify(v));}catch{} },
   del:(k)=>{ try{localStorage.removeItem(k);}catch{} },
 };
@@ -364,7 +373,7 @@ function AddressInput({value, onChange, placeholder='Enter address...',style}) {
           onFocus={()=>setShowDrop(true)}
           onBlur={()=>setTimeout(()=>setShowDrop(false),180)}
           placeholder={placeholder}
-          style={{...IS({flex:1,width:'auto'},...(style||{}))}}
+          style={IS({flex:1,width:'auto',...(style||{})})}
         />
         <button
           type="button"
@@ -1719,7 +1728,9 @@ function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEven
 
 // ─── Calendar ─────────────────────────────────────────────────────────────────
 function Calendar({config,onReset}) {
-  const {types,name,partnerName,tzA:initA,tzB:initB,homeLocation}=config;
+  const rawTypes=config.types;
+  const types=Array.isArray(rawTypes)?rawTypes:(rawTypes?[rawTypes]:[]);
+  const {name,partnerName,tzA:initA,tzB:initB,homeLocation}=config;
   const userId = config?.user?.id || 'guest';
   const evKey  = `ophelia_events_${userId}`;
   const ntKey  = `ophelia_notes_${userId}`;
