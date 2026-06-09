@@ -2061,8 +2061,27 @@ function Calendar({config,onReset}) {
   );
 }
 
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props){super(props);this.state={err:null};}
+  static getDerivedStateFromError(e){return{err:e};}
+  render(){
+    if(this.state.err){
+      return(
+        <div style={{minHeight:'100vh',background:'#faf6f0',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'32px',fontFamily:"'DM Sans',sans-serif",textAlign:'center'}}>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'48px',fontWeight:300,color:'#b5631e',marginBottom:'12px'}}>Ophelia</div>
+          <div style={{fontSize:'15px',color:'#7a6248',marginBottom:'20px'}}>Something went wrong. Please try again.</div>
+          <button onClick={()=>{localStorage.clear();window.location.reload();}} style={{background:'#b5631e',color:'#fff',border:'none',borderRadius:'10px',padding:'12px 28px',cursor:'pointer',fontSize:'14px',fontWeight:600}}>Reset &amp; Reload</button>
+          <div style={{marginTop:'16px',fontSize:'11px',color:'#a08868',maxWidth:'360px',wordBreak:'break-all'}}>{String(this.state.err?.message||this.state.err)}</div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
-export default function Ophelia() {
+function OpheliaApp() {
   const [screen, setScreen] = useState(()=>{
     const cfg=LS.get('ophelia_config',null);
     if(!cfg) return 'auth';
@@ -2130,7 +2149,14 @@ export default function Ophelia() {
       {screen==='auth'      && <AuthScreen onComplete={handleAuth}/>}
       {screen==='invite'    && <InviteScreen inviteData={inviteData} onAccept={handleInviteAccept}/>}
       {screen==='onboarding'&& <Onboarding onComplete={handleOnboarding}/>}
-      {screen==='calendar'  && config && <Calendar config={config} onReset={handleReset}/>}
+      {screen==='calendar'  && (config
+        ? <Calendar config={config} onReset={handleReset}/>
+        : <AuthScreen onComplete={handleAuth}/>
+      )}
     </>
   );
+}
+
+export default function Ophelia(){
+  return <ErrorBoundary><OpheliaApp/></ErrorBoundary>;
 }
