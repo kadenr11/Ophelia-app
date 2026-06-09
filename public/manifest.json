@@ -1,0 +1,16 @@
+{
+  "short_name": "Ophelia",
+  "name": "Ophelia — Your Everyday Calendar",
+  "description": "A beautiful calendar for people who live across time zones.",
+  "icons": [
+    { "src": "favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#faf6f0",
+  "theme_color": "#b5631e",
+  "categories": ["productivity", "utilities", "lifestyle"],
+  "lang": "en",
+  "scope": "/"
+}
