@@ -1966,7 +1966,7 @@ function Calendar({config,onReset}) {
   return(
     <>
       <div style={{minHeight:'100vh',background:T.bg,fontFamily:"'DM Sans',sans-serif",color:T.text1}}>
-        <div className="cal-max" style={{maxWidth:'840px',margin:'0 auto',padding:'clamp(16px,4vw,28px) clamp(12px,4vw,18px) calc(160px + env(safe-area-inset-bottom, 20px))'}}>
+        <div className="cal-max" style={{maxWidth:'840px',margin:'0 auto',paddingTop:'clamp(16px,4vw,28px)',paddingLeft:'clamp(12px,4vw,18px)',paddingRight:'clamp(12px,4vw,18px)',paddingBottom:'200px'}}>
 
           {/* Header */}
           <div style={{textAlign:'center',marginBottom:'28px'}}>
@@ -2266,6 +2266,7 @@ function Calendar({config,onReset}) {
 
           {/* New event CTA */}
           {!selectedDay&&<div style={{textAlign:'center',marginTop:'12px'}}><button onClick={()=>setModal({})} style={PB({padding:'13px 40px',fontSize:'15px',borderRadius:'40px',letterSpacing:'0.06em',boxShadow:'0 6px 24px rgba(181,99,30,0.3)'})}>&#43;&ensp;New Event</button></div>}
+          <div style={{height:'80px'}}/>
         </div>
       </div>
 
