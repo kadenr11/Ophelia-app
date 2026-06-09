@@ -489,13 +489,24 @@ function AuthScreen({onComplete}) {
     const stored = LS.get('ophelia_users',[]);
     const existing = stored.find(u=>u.email.toLowerCase()===key);
     if(mode==='signin') {
-      if(!existing) { setErr('No account found with that email.'); setLoading(false); return; }
+      if(!existing) {
+        // Account not found locally — auto-recover: create it so they can get back in
+        const betaValid = checkBetaCode(promo);
+        const user = { id:Date.now(), email:key, name:key.split('@')[0], authMethod:'email', passHash:hashPass(pass), phone:'', smsConsent:false, pushEnabled:false, plan:betaValid?'plus':'free' };
+        LS.set('ophelia_users',[...stored, user]);
+        onComplete(user);
+        return;
+      }
       if(existing.passHash && existing.passHash!==hashPass(pass)) { setErr('Incorrect password.'); setLoading(false); return; }
       onComplete(existing); return;
     }
     if(!name) { setErr('Please enter your name.'); setLoading(false); return; }
     if(pass.length<8) { setErr('Password must be at least 8 characters.'); setLoading(false); return; }
-    if(existing) { setErr('An account with that email already exists.'); setLoading(false); return; }
+    if(existing) {
+      // Already exists — just sign them in if password matches
+      if(existing.passHash && existing.passHash!==hashPass(pass)) { setErr('An account with that email exists. Check your password.'); setLoading(false); return; }
+      onComplete(existing); return;
+    }
     const betaValid = checkBetaCode(promo);
     const pushGranted = pushOk ? await requestPush() : false;
     const user = { id:Date.now(), email:key, name:name||key.split('@')[0], authMethod:'email', passHash:hashPass(pass), phone:phone||'', smsConsent:smsOk, pushEnabled:pushGranted, plan:betaValid?'plus':'free', betaCode:betaValid?promo.trim().toUpperCase():null };
