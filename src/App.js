@@ -1086,6 +1086,174 @@ function Onboarding({onComplete}) {
   );
 }
 
+// ─── BottomNav ────────────────────────────────────────────────────────────────
+function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEvent,onAdmin,onReset,plan}) {
+  const [open,setOpen]=useState(false);
+  const allUpcoming=[...events]
+    .filter(e=>e.date>=todayStr)
+    .sort((a,b)=>`${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+
+  const isToday=ds=>ds===todayStr;
+  const isTomorrow=ds=>{const t=new Date();t.setDate(t.getDate()+1);const s=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;return ds===s;};
+  const dayLabel=ds=>{if(isToday(ds))return'Today';if(isTomorrow(ds))return'Tomorrow';return dateLabel(ds);};
+
+  const RECUR_ICONS={'daily':'Daily','weekly':'Weekly','bi-weekly':'Every 2 wks','monthly':'Monthly','yearly':'Yearly'};
+
+  return(
+    <>
+      {/* Drawer backdrop */}
+      {open&&<div onClick={()=>setOpen(false)} style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.3)',zIndex:8000,backdropFilter:'blur(2px)'}}/>}
+
+      {/* Upcoming events drawer — slides up from bottom */}
+      <div style={{
+        position:'fixed',bottom:open?0:'-100%',left:0,right:0,
+        background:T.bg,borderRadius:'22px 22px 0 0',
+        border:`1px solid ${T.border}`,borderBottom:'none',
+        boxShadow:'0 -8px 48px rgba(0,0,0,0.18)',
+        zIndex:8100,
+        maxHeight:'78vh',display:'flex',flexDirection:'column',
+        transition:'bottom 0.32s cubic-bezier(0.32,0.72,0,1)',
+        fontFamily:"'DM Sans',sans-serif",
+      }}>
+        {/* Drag handle */}
+        <div style={{display:'flex',justifyContent:'center',padding:'12px 0 4px',flexShrink:0}}>
+          <div style={{width:'36px',height:'4px',borderRadius:'2px',background:T.border2}}/>
+        </div>
+
+        {/* Drawer header */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 20px 14px',flexShrink:0,borderBottom:`1px solid ${T.border}`}}>
+          <div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',fontWeight:600,color:T.text1}}>Upcoming Events</div>
+            <div style={{fontSize:'12px',color:T.text4,marginTop:'2px'}}>{allUpcoming.length} event{allUpcoming.length!==1?'s':''} ahead</div>
+          </div>
+          <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+            <button onClick={onNewEvent} style={PB({padding:'8px 14px',fontSize:'12px'})}>&#43; New</button>
+            <button onClick={()=>setOpen(false)} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'20px',padding:'4px',lineHeight:1}}>&#10005;</button>
+          </div>
+        </div>
+
+        {/* Event list */}
+        <div style={{flex:1,overflowY:'auto',padding:'14px 16px 24px',display:'flex',flexDirection:'column',gap:'10px'}}>
+          {allUpcoming.length===0&&(
+            <div style={{textAlign:'center',padding:'48px 20px',color:T.text4}}>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'18px',fontStyle:'italic',marginBottom:'6px'}}>Nothing on the horizon</div>
+              <div style={{fontSize:'13px'}}>Tap <strong>+ New</strong> to add your first event</div>
+            </div>
+          )}
+          {allUpcoming.map(ev=>{
+            const tA=evtTime(ev,tzA);
+            const tB=tzB?evtTime(ev,tzB):null;
+            const dLabel=dayLabel(ev.date);
+            const isNearby=isToday(ev.date)||isTomorrow(ev.date);
+            return(
+              <div key={ev.id} onClick={()=>{onEventClick(ev);setOpen(false);}} style={{
+                background:'#fff',border:`1px solid ${T.border}`,
+                borderLeft:`4px solid ${ev.color}`,
+                borderRadius:'14px',padding:'14px 16px',
+                cursor:'pointer',
+                boxShadow:'0 1px 6px rgba(0,0,0,0.05)',
+              }}>
+                {/* Date badge + title row */}
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'8px'}}>
+                  <div style={{flex:1,minWidth:0,marginRight:'12px'}}>
+                    <div style={{fontSize:'15px',color:T.text1,fontWeight:700,marginBottom:'2px'}}>{ev.title}</div>
+                    {ev.note&&<div style={{fontSize:'12px',color:T.text3,fontStyle:'italic',marginTop:'2px',lineHeight:1.45}}>{ev.note}</div>}
+                  </div>
+                  <div style={{flexShrink:0,textAlign:'right'}}>
+                    <div style={{fontSize:'12px',fontWeight:700,color:isNearby?T.accent:T.text3,background:isNearby?`${T.accent}12`:T.surface,border:`1px solid ${isNearby?`${T.accent}30`:T.border}`,borderRadius:'20px',padding:'3px 10px',whiteSpace:'nowrap'}}>{dLabel}</div>
+                  </div>
+                </div>
+
+                {/* Time row */}
+                <div style={{display:'flex',flexWrap:'wrap',gap:'10px',fontSize:'13px',marginBottom:ev.location||ev.recurrence?'8px':0}}>
+                  <span>
+                    <span style={{fontSize:'11px',color:T.text4,letterSpacing:'0.06em',textTransform:'uppercase',marginRight:'4px'}}>{labelA}</span>
+                    <span style={{color:T.accent,fontWeight:700}}>{tA}</span>
+                  </span>
+                  {tB&&(
+                    <span>
+                      <span style={{color:T.border2,marginRight:'8px'}}>&#9670;</span>
+                      <span style={{fontSize:'11px',color:T.text4,letterSpacing:'0.06em',textTransform:'uppercase',marginRight:'4px'}}>{labelB}</span>
+                      <span style={{color:T.lavender,fontWeight:700}}>{tB}</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Location + recurrence */}
+                <div style={{display:'flex',gap:'12px',flexWrap:'wrap',marginTop:'2px'}}>
+                  {ev.location&&(
+                    <div style={{fontSize:'12px',color:T.sky,display:'flex',alignItems:'center',gap:'4px'}}>
+                      <span style={{fontSize:'10px'}}>&#9671;</span>{ev.location}
+                    </div>
+                  )}
+                  {ev.recurrence&&ev.recurrence!=='none'&&(
+                    <div style={{fontSize:'11px',color:T.sage,fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase'}}>
+                      {RECUR_ICONS[ev.recurrence]||ev.recurrence}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Fixed bottom bar */}
+      <div style={{
+        position:'fixed',bottom:0,left:0,right:0,
+        background:T.bg,borderTop:`1px solid ${T.border}`,
+        display:'flex',alignItems:'center',justifyContent:'space-around',
+        padding:'8px 8px calc(8px + env(safe-area-inset-bottom))',
+        zIndex:9000,
+        fontFamily:"'DM Sans',sans-serif",
+        boxShadow:'0 -2px 16px rgba(0,0,0,0.08)',
+      }}>
+        {/* Events icon */}
+        <button onClick={()=>setOpen(o=>!o)} style={{
+          display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',
+          background:'none',border:'none',cursor:'pointer',padding:'6px 14px',borderRadius:'12px',
+          color:open?T.accent:T.text3,
+          background:open?`${T.accent}10`:'none',
+        }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="3"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+            <line x1="8" y1="14" x2="8" y2="14" strokeWidth="2.5"/><line x1="12" y1="14" x2="12" y2="14" strokeWidth="2.5"/><line x1="16" y1="14" x2="16" y2="14" strokeWidth="2.5"/>
+            <line x1="8" y1="18" x2="8" y2="18" strokeWidth="2.5"/><line x1="12" y1="18" x2="12" y2="18" strokeWidth="2.5"/>
+          </svg>
+          <span style={{fontSize:'10px',fontWeight:600,letterSpacing:'0.04em'}}>Events</span>
+          {allUpcoming.length>0&&<span style={{position:'absolute',top:'4px',width:'16px',height:'16px',borderRadius:'50%',background:T.accent,color:'#fff',fontSize:'9px',fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',marginLeft:'16px',marginTop:'-2px'}}>{allUpcoming.length>9?'9+':allUpcoming.length}</span>}
+        </button>
+
+        {/* New event centre button */}
+        <button onClick={onNewEvent} style={{
+          background:T.accent,color:'#fff',border:'none',
+          width:'52px',height:'52px',borderRadius:'50%',
+          fontSize:'24px',cursor:'pointer',
+          boxShadow:`0 4px 20px ${T.accent}55`,
+          display:'flex',alignItems:'center',justifyContent:'center',
+          fontWeight:300,lineHeight:1,
+          transform:'translateY(-6px)',
+        }}>&#43;</button>
+
+        {/* Admin / settings */}
+        <button onClick={onAdmin} style={{
+          display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',
+          background:'none',border:'none',cursor:'pointer',padding:'6px 14px',borderRadius:'12px',
+          color:T.text3,
+        }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+          </svg>
+          <span style={{fontSize:'10px',fontWeight:600,letterSpacing:'0.04em'}}>Admin</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
 // ─── Calendar ─────────────────────────────────────────────────────────────────
 function Calendar({config,onReset}) {
   const {types,name,partnerName,tzA:initA,tzB:initB,homeLocation}=config;
@@ -1134,7 +1302,7 @@ function Calendar({config,onReset}) {
   return(
     <>
       <div style={{minHeight:'100vh',background:T.bg,fontFamily:"'DM Sans',sans-serif",color:T.text1}}>
-        <div className="cal-max" style={{maxWidth:'840px',margin:'0 auto',padding:'clamp(16px,4vw,28px) clamp(12px,4vw,18px) 80px'}}>
+        <div className="cal-max" style={{maxWidth:'840px',margin:'0 auto',padding:'clamp(16px,4vw,28px) clamp(12px,4vw,18px) 110px'}}>
 
           {/* Header */}
           <div style={{textAlign:'center',marginBottom:'28px'}}>
@@ -1280,12 +1448,18 @@ function Calendar({config,onReset}) {
       {showSplash&&<LoveNoteSplash notes={notes} labelA={labelA} labelB={labelB} onClose={()=>setShowSplash(false)}/>}
       {showAdmin&&<AdminPanel onClose={()=>setShowAdmin(false)}/>}
 
-      {/* Fixed buttons */}
-      <div style={{position:'fixed',bottom:'20px',right:'20px',zIndex:9999,display:'flex',flexDirection:'column',gap:'8px',alignItems:'flex-end'}}>
-        <button onClick={()=>setShowAdmin(true)} style={{background:T.admin,color:'#fff',border:'none',padding:'9px 14px',borderRadius:'999px',fontSize:'12px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Admin</button>
-        <button onClick={onReset} style={{background:T.surface2,color:T.text3,border:`1px solid ${T.border}`,padding:'8px 14px',borderRadius:'999px',fontSize:'12px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>&#8635; Reset</button>
-        {config?.plan==='free'&&<button onClick={()=>window.open('https://kadenrohatensky.gumroad.com/l/wonfe','_blank')} style={{background:T.accent,color:'#fff',border:'none',padding:'13px 20px',borderRadius:'999px',fontSize:'14px',fontWeight:700,cursor:'pointer',boxShadow:'0 8px 24px rgba(0,0,0,0.2)',fontFamily:"'DM Sans',sans-serif"}}>Upgrade to Plus</button>}
-      </div>
+      {/* Bottom nav bar */}
+      <BottomNav
+        events={events}
+        tzA={activeTzA} tzB={isLocal?null:tzB}
+        labelA={labelA} labelB={labelB}
+        todayStr={todayStr}
+        onEventClick={ev=>setModal(ev)}
+        onNewEvent={()=>setModal({})}
+        onAdmin={()=>setShowAdmin(true)}
+        onReset={onReset}
+        plan={config?.plan||'free'}
+      />
     </>
   );
 }
