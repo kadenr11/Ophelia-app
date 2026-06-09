@@ -1,422 +1,259 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// ─── Config ──────────────────────────────────────────────────────────────────
-// TODO: Set these before deploying
-// Firebase config: import { initializeApp } from 'firebase/app';
-// const FIREBASE_CONFIG = { apiKey: '...', projectId: '...', ... };
-
-// Google Maps API key for traffic data
-// const GOOGLE_MAPS_API_KEY = 'YOUR_KEY_HERE';
-
-// Stripe
-// const STRIPE_PUBLIC_KEY = 'pk_live_...';
-
-// Google OAuth
-// const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
-
-// Apple Sign In
-// const APPLE_TEAM_ID = 'YOUR_TEAM_ID';
-// const APPLE_KEY_ID = 'YOUR_KEY_ID';
+// ─── API Config (fill in before deploying) ───────────────────────────────────
+// Firebase:  import { initializeApp } from 'firebase/app'; const FIREBASE_CONFIG = { apiKey: '...', projectId: '...' };
+// Maps:      const GOOGLE_MAPS_API_KEY = 'YOUR_KEY_HERE';
+// Stripe:    const STRIPE_PUBLIC_KEY   = 'pk_live_...';
+// Google OAuth: const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+// Apple:     const APPLE_TEAM_ID = 'YOUR_TEAM_ID';
 
 const ADMIN_PASSCODE = 'Mommy11737';
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
 const T = {
-  bg: '#faf6f0', surface: '#f2ece2', surface2: '#ece4d6',
-  border: '#ddd0bc', border2: '#ccc0a8',
-  text1: '#1a1208', text2: '#3d2e1e', text3: '#7a6248', text4: '#a08868',
-  accent: '#b5631e', rose: '#c0555a', sage: '#3d7a4a', sky: '#2d6a9a', lavender: '#6a559a',
-  danger: '#b53030', admin: '#2d4a6a', success: '#2d6a4a',
+  bg:'#faf6f0', surface:'#f2ece2', surface2:'#ece4d6',
+  border:'#ddd0bc', border2:'#ccc0a8',
+  text1:'#1a1208', text2:'#3d2e1e', text3:'#7a6248', text4:'#a08868',
+  accent:'#b5631e', rose:'#c0555a', sage:'#3d7a4a', sky:'#2d6a9a',
+  lavender:'#6a559a', danger:'#b53030', admin:'#2d4a6a',
 };
 
-// ─── Comprehensive Timezones (USA, Canada, Australia, Europe, Asia) ──────────
+// ─── Timezones — worldwide cities ────────────────────────────────────────────
 const TIMEZONES = [
-  // North America - USA
-  { label: 'Honolulu, HI', value: 'Pacific/Honolulu', region: 'USA', offset: -10 },
-  { label: 'Anchorage, AK', value: 'America/Anchorage', region: 'USA', offset: -9 },
-  { label: 'Los Angeles, CA', value: 'America/Los_Angeles', region: 'USA', offset: -8 },
-  { label: 'Phoenix, AZ', value: 'America/Phoenix', region: 'USA', offset: -7 },
-  { label: 'Denver, CO', value: 'America/Denver', region: 'USA', offset: -7 },
-  { label: 'Chicago, IL', value: 'America/Chicago', region: 'USA', offset: -6 },
-  { label: 'Dallas, TX', value: 'America/Chicago', region: 'USA', offset: -6 },
-  { label: 'New York, NY', value: 'America/New_York', region: 'USA', offset: -5 },
-  { label: 'Miami, FL', value: 'America/New_York', region: 'USA', offset: -5 },
-
+  // USA
+  { label:'Honolulu, HI',          value:'Pacific/Honolulu',             region:'USA' },
+  { label:'Anchorage, AK',         value:'America/Anchorage',            region:'USA' },
+  { label:'Los Angeles, CA',       value:'America/Los_Angeles',          region:'USA' },
+  { label:'San Francisco, CA',     value:'America/Los_Angeles',          region:'USA' },
+  { label:'Seattle, WA',           value:'America/Los_Angeles',          region:'USA' },
+  { label:'Las Vegas, NV',         value:'America/Los_Angeles',          region:'USA' },
+  { label:'Phoenix, AZ',           value:'America/Phoenix',              region:'USA' },
+  { label:'Denver, CO',            value:'America/Denver',               region:'USA' },
+  { label:'Salt Lake City, UT',    value:'America/Denver',               region:'USA' },
+  { label:'Albuquerque, NM',       value:'America/Denver',               region:'USA' },
+  { label:'Chicago, IL',           value:'America/Chicago',              region:'USA' },
+  { label:'Dallas, TX',            value:'America/Chicago',              region:'USA' },
+  { label:'Houston, TX',           value:'America/Chicago',              region:'USA' },
+  { label:'New Orleans, LA',       value:'America/Chicago',              region:'USA' },
+  { label:'Minneapolis, MN',       value:'America/Chicago',              region:'USA' },
+  { label:'Nashville, TN',         value:'America/Chicago',              region:'USA' },
+  { label:'New York, NY',          value:'America/New_York',             region:'USA' },
+  { label:'Miami, FL',             value:'America/New_York',             region:'USA' },
+  { label:'Tampa, FL',             value:'America/New_York',             region:'USA' },
+  { label:'Orlando, FL',           value:'America/New_York',             region:'USA' },
+  { label:'Atlanta, GA',           value:'America/New_York',             region:'USA' },
+  { label:'Boston, MA',            value:'America/New_York',             region:'USA' },
+  { label:'Washington DC',         value:'America/New_York',             region:'USA' },
+  { label:'Philadelphia, PA',      value:'America/New_York',             region:'USA' },
+  { label:'Detroit, MI',           value:'America/Detroit',              region:'USA' },
   // Canada
-  { label: 'Vancouver, BC', value: 'America/Vancouver', region: 'Canada', offset: -8 },
-  { label: 'Calgary, AB', value: 'America/Edmonton', region: 'Canada', offset: -7 },
-  { label: 'Toronto, ON', value: 'America/Toronto', region: 'Canada', offset: -5 },
-  { label: 'Montréal, QC', value: 'America/Toronto', region: 'Canada', offset: -5 },
-
+  { label:'Vancouver, BC',         value:'America/Vancouver',            region:'Canada' },
+  { label:'Calgary, AB',           value:'America/Edmonton',             region:'Canada' },
+  { label:'Edmonton, AB',          value:'America/Edmonton',             region:'Canada' },
+  { label:'Winnipeg, MB',          value:'America/Winnipeg',             region:'Canada' },
+  { label:'Toronto, ON',           value:'America/Toronto',              region:'Canada' },
+  { label:'Ottawa, ON',            value:'America/Toronto',              region:'Canada' },
+  { label:'Montréal, QC',          value:'America/Toronto',              region:'Canada' },
+  { label:'Halifax, NS',           value:'America/Halifax',              region:'Canada' },
+  { label:"St. John's, NL",        value:'America/St_Johns',             region:'Canada' },
+  // Latin America
+  { label:'Mexico City, MX',       value:'America/Mexico_City',          region:'Latin America' },
+  { label:'Bogotá, CO',            value:'America/Bogota',               region:'Latin America' },
+  { label:'Lima, PE',              value:'America/Lima',                 region:'Latin America' },
+  { label:'Santiago, CL',          value:'America/Santiago',             region:'Latin America' },
+  { label:'São Paulo, BR',         value:'America/Sao_Paulo',            region:'Latin America' },
+  { label:'Buenos Aires, AR',      value:'America/Argentina/Buenos_Aires',region:'Latin America' },
   // Europe
-  { label: 'London, UK', value: 'Europe/London', region: 'Europe', offset: 0 },
-  { label: 'Dublin, IE', value: 'Europe/Dublin', region: 'Europe', offset: 0 },
-  { label: 'Paris, FR', value: 'Europe/Paris', region: 'Europe', offset: 1 },
-  { label: 'Amsterdam, NL', value: 'Europe/Amsterdam', region: 'Europe', offset: 1 },
-  { label: 'Berlin, DE', value: 'Europe/Berlin', region: 'Europe', offset: 1 },
-  { label: 'Madrid, ES', value: 'Europe/Madrid', region: 'Europe', offset: 1 },
-  { label: 'Rome, IT', value: 'Europe/Rome', region: 'Europe', offset: 1 },
-  { label: 'Zurich, CH', value: 'Europe/Zurich', region: 'Europe', offset: 1 },
-  { label: 'Stockholm, SE', value: 'Europe/Stockholm', region: 'Europe', offset: 1 },
-  { label: 'Moscow, RU', value: 'Europe/Moscow', region: 'Europe', offset: 3 },
-
-  // Australia
-  { label: 'Sydney, NSW', value: 'Australia/Sydney', region: 'Australia', offset: 10 },
-  { label: 'Melbourne, VIC', value: 'Australia/Melbourne', region: 'Australia', offset: 10 },
-  { label: 'Brisbane, QLD', value: 'Australia/Brisbane', region: 'Australia', offset: 10 },
-  { label: 'Perth, WA', value: 'Australia/Perth', region: 'Australia', offset: 8 },
-  { label: 'Adelaide, SA', value: 'Australia/Adelaide', region: 'Australia', offset: 9.5 },
-
-  // Asia
-  { label: 'Tokyo, JP', value: 'Asia/Tokyo', region: 'Asia', offset: 9 },
-  { label: 'Singapore, SG', value: 'Asia/Singapore', region: 'Asia', offset: 8 },
-  { label: 'Hong Kong, HK', value: 'Asia/Hong_Kong', region: 'Asia', offset: 8 },
-  { label: 'Shanghai, CN', value: 'Asia/Shanghai', region: 'Asia', offset: 8 },
-  { label: 'Bangkok, TH', value: 'Asia/Bangkok', region: 'Asia', offset: 7 },
-  { label: 'Manila, PH', value: 'Asia/Manila', region: 'Asia', offset: 8 },
-  { label: 'Siargao, PH', value: 'Asia/Manila', region: 'Asia', offset: 8 },
-  { label: 'Dubai, AE', value: 'Asia/Dubai', region: 'Asia', offset: 4 },
-  { label: 'Mumbai, IN', value: 'Asia/Kolkata', region: 'Asia', offset: 5.5 },
-  { label: 'Bangkok, TH', value: 'Asia/Bangkok', region: 'Asia', offset: 7 },
-
-  // New Zealand
-  { label: 'Auckland, NZ', value: 'Pacific/Auckland', region: 'Pacific', offset: 12 },
-  { label: 'Wellington, NZ', value: 'Pacific/Auckland', region: 'Pacific', offset: 12 },
+  { label:'London, UK',            value:'Europe/London',                region:'Europe' },
+  { label:'Dublin, IE',            value:'Europe/Dublin',                region:'Europe' },
+  { label:'Lisbon, PT',            value:'Europe/Lisbon',                region:'Europe' },
+  { label:'Paris, FR',             value:'Europe/Paris',                 region:'Europe' },
+  { label:'Brussels, BE',          value:'Europe/Brussels',              region:'Europe' },
+  { label:'Amsterdam, NL',         value:'Europe/Amsterdam',             region:'Europe' },
+  { label:'Berlin, DE',            value:'Europe/Berlin',                region:'Europe' },
+  { label:'Frankfurt, DE',         value:'Europe/Berlin',                region:'Europe' },
+  { label:'Zurich, CH',            value:'Europe/Zurich',                region:'Europe' },
+  { label:'Vienna, AT',            value:'Europe/Vienna',                region:'Europe' },
+  { label:'Madrid, ES',            value:'Europe/Madrid',                region:'Europe' },
+  { label:'Barcelona, ES',         value:'Europe/Madrid',                region:'Europe' },
+  { label:'Rome, IT',              value:'Europe/Rome',                  region:'Europe' },
+  { label:'Milan, IT',             value:'Europe/Rome',                  region:'Europe' },
+  { label:'Stockholm, SE',         value:'Europe/Stockholm',             region:'Europe' },
+  { label:'Oslo, NO',              value:'Europe/Oslo',                  region:'Europe' },
+  { label:'Copenhagen, DK',        value:'Europe/Copenhagen',            region:'Europe' },
+  { label:'Helsinki, FI',          value:'Europe/Helsinki',              region:'Europe' },
+  { label:'Warsaw, PL',            value:'Europe/Warsaw',                region:'Europe' },
+  { label:'Prague, CZ',            value:'Europe/Prague',                region:'Europe' },
+  { label:'Budapest, HU',          value:'Europe/Budapest',              region:'Europe' },
+  { label:'Athens, GR',            value:'Europe/Athens',                region:'Europe' },
+  { label:'Istanbul, TR',          value:'Europe/Istanbul',              region:'Europe' },
+  { label:'Moscow, RU',            value:'Europe/Moscow',                region:'Europe' },
+  // Middle East / Africa
+  { label:'Dubai, AE',             value:'Asia/Dubai',                   region:'Middle East' },
+  { label:'Abu Dhabi, AE',         value:'Asia/Dubai',                   region:'Middle East' },
+  { label:'Riyadh, SA',            value:'Asia/Riyadh',                  region:'Middle East' },
+  { label:'Tel Aviv, IL',          value:'Asia/Jerusalem',               region:'Middle East' },
+  { label:'Cairo, EG',             value:'Africa/Cairo',                 region:'Middle East' },
+  { label:'Nairobi, KE',           value:'Africa/Nairobi',               region:'Africa' },
+  { label:'Lagos, NG',             value:'Africa/Lagos',                 region:'Africa' },
+  { label:'Johannesburg, ZA',      value:'Africa/Johannesburg',          region:'Africa' },
+  { label:'Cape Town, ZA',         value:'Africa/Johannesburg',          region:'Africa' },
+  // South Asia
+  { label:'Mumbai, IN',            value:'Asia/Kolkata',                 region:'Asia' },
+  { label:'Delhi, IN',             value:'Asia/Kolkata',                 region:'Asia' },
+  { label:'Kolkata, IN',           value:'Asia/Kolkata',                 region:'Asia' },
+  { label:'Karachi, PK',           value:'Asia/Karachi',                 region:'Asia' },
+  { label:'Dhaka, BD',             value:'Asia/Dhaka',                   region:'Asia' },
+  { label:'Colombo, LK',           value:'Asia/Colombo',                 region:'Asia' },
+  // Southeast Asia
+  { label:'Bangkok, TH',           value:'Asia/Bangkok',                 region:'Asia' },
+  { label:'Ho Chi Minh City, VN',  value:'Asia/Ho_Chi_Minh',             region:'Asia' },
+  { label:'Hanoi, VN',             value:'Asia/Bangkok',                 region:'Asia' },
+  { label:'Kuala Lumpur, MY',      value:'Asia/Kuala_Lumpur',            region:'Asia' },
+  { label:'Singapore, SG',         value:'Asia/Singapore',               region:'Asia' },
+  { label:'Manila, PH',            value:'Asia/Manila',                  region:'Asia' },
+  { label:'Siargao, PH',           value:'Asia/Manila',                  region:'Asia' },
+  { label:'Cebu, PH',              value:'Asia/Manila',                  region:'Asia' },
+  { label:'Jakarta, ID',           value:'Asia/Jakarta',                 region:'Asia' },
+  { label:'Bali, ID',              value:'Asia/Makassar',                region:'Asia' },
+  // East Asia
+  { label:'Beijing, CN',           value:'Asia/Shanghai',                region:'Asia' },
+  { label:'Shanghai, CN',          value:'Asia/Shanghai',                region:'Asia' },
+  { label:'Shenzhen, CN',          value:'Asia/Shanghai',                region:'Asia' },
+  { label:'Hong Kong, HK',         value:'Asia/Hong_Kong',               region:'Asia' },
+  { label:'Taipei, TW',            value:'Asia/Taipei',                  region:'Asia' },
+  { label:'Seoul, KR',             value:'Asia/Seoul',                   region:'Asia' },
+  { label:'Tokyo, JP',             value:'Asia/Tokyo',                   region:'Asia' },
+  { label:'Osaka, JP',             value:'Asia/Tokyo',                   region:'Asia' },
+  // Oceania
+  { label:'Perth, WA',             value:'Australia/Perth',              region:'Australia' },
+  { label:'Darwin, NT',            value:'Australia/Darwin',             region:'Australia' },
+  { label:'Adelaide, SA',          value:'Australia/Adelaide',           region:'Australia' },
+  { label:'Brisbane, QLD',         value:'Australia/Brisbane',           region:'Australia' },
+  { label:'Sydney, NSW',           value:'Australia/Sydney',             region:'Australia' },
+  { label:'Canberra, ACT',         value:'Australia/Sydney',             region:'Australia' },
+  { label:'Melbourne, VIC',        value:'Australia/Melbourne',          region:'Australia' },
+  { label:'Hobart, TAS',           value:'Australia/Hobart',             region:'Australia' },
+  { label:'Auckland, NZ',          value:'Pacific/Auckland',             region:'Pacific' },
+  { label:'Wellington, NZ',        value:'Pacific/Auckland',             region:'Pacific' },
+  { label:'Suva, FJ',              value:'Pacific/Fiji',                 region:'Pacific' },
 ];
 
 const EVENT_COLORS = [
-  { name: 'Rose', value: '#c0555a' },
-  { name: 'Amber', value: '#b5821e' },
-  { name: 'Sage', value: '#3d7a4a' },
-  { name: 'Sky', value: '#2d6a9a' },
-  { name: 'Lavender', value: '#6a559a' },
-  { name: 'Blush', value: '#c0607a' },
+  { name:'Rose',     value:'#c0555a' },
+  { name:'Amber',    value:'#b5821e' },
+  { name:'Sage',     value:'#3d7a4a' },
+  { name:'Sky',      value:'#2d6a9a' },
+  { name:'Lavender', value:'#6a559a' },
+  { name:'Blush',    value:'#c0607a' },
 ];
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const RECURRENCE = ['none', 'daily', 'weekly', 'bi-weekly', 'monthly', 'yearly'];
+const DAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const RECURRENCE_OPTIONS = ['none','daily','weekly','bi-weekly','monthly','yearly'];
 
 const USER_TYPES = [
-  {
-    id: 'couple',
-    icon: '◇',
-    title: 'Long-Distance Couple',
-    accent: T.rose,
-    desc: 'Stay close across time zones.',
-    features: ['Dual clocks', 'Shared calendar', 'Love notes', 'Gifts', 'Travel mode'],
-  },
-  {
-    id: 'traveler',
-    icon: '⊕',
-    title: 'Business Traveler',
-    accent: T.sky,
-    desc: "You move fast. We keep it straight.",
-    features: ['Travel mode', 'Multi-city', 'Meeting finder', 'Traffic alerts', 'Trip tracking'],
-  },
-  {
-    id: 'local',
-    icon: '⌂',
-    title: 'Stay Local',
-    accent: T.sage,
-    desc: 'One place, one calendar.',
-    features: ['Single timezone', 'Events', 'Reminders', 'Traffic alerts'],
-  },
+  { id:'couple',   icon:'◇', title:'Long-Distance Couple',  accent:T.rose,     desc:'Stay close across time zones.',    features:['Dual clocks','Shared calendar','Love notes','Gifts','Travel mode'] },
+  { id:'traveler', icon:'⊕', title:'Business Traveler',     accent:T.sky,      desc:'You move fast. We keep it clear.', features:['Travel mode','Multi-city','Meeting finder','Traffic alerts'] },
+  { id:'local',    icon:'⌂', title:'Stay Local',            accent:T.sage,     desc:'One place, one calendar.',         features:['Single timezone','Color events','Reminders','Traffic alerts'] },
 ];
 
 const PLANS = [
-  { id: 'free', label: 'Free', price: 'Always free', priceNum: 0, sub: 'Single timezone · 10 events · Basic', badge: null },
-  { id: 'plus', label: 'Plus', price: '$3.99/mo', priceNum: 3.99, sub: 'Everything — dual clocks, traffic alerts, gifts', badge: 'Popular · Free month', stripePriceId: 'price_PLUS_ID_HERE' },
-  { id: 'pro', label: 'Pro', price: '$6.99/mo', priceNum: 6.99, sub: 'Plus + Google/Apple sync, priority support', badge: null, stripePriceId: 'price_PRO_ID_HERE' },
+  { id:'free', label:'Free',          price:'Always free', priceNum:0,    sub:'Single timezone · 10 events · Basic',                          badge:null,                       stripePriceId:null },
+  { id:'plus', label:'Ophelia Plus',  price:'$3.99/mo',    priceNum:3.99, sub:'Dual clocks · Traffic alerts · Gifts · Notes · Travel mode',   badge:'Most Popular · 1 mo free', stripePriceId:'price_PLUS_ID_HERE' },
+  { id:'pro',  label:'Ophelia Pro',   price:'$6.99/mo',    priceNum:6.99, sub:'Plus + Google/Apple Calendar sync · Priority support',         badge:null,                       stripePriceId:'price_PRO_ID_HERE'  },
 ];
 
+// ─── Affiliate partners (populate after joining programs) ────────────────────
+// Recommended programs to join:
+//  US/CA: 1-800-Flowers (CJ Affiliate), FTD (Impact), Teleflora (ShareASale), ProFlowers
+//  AU:    Interflora AU, Flowers for Everyone, Amazing Graze Flowers
+//  EU/UK: Bloom & Wild (Awin), Interflora UK, FloraQueen (international)
+//  Asia:  Interflora International, local florists via Rakuten Advertising
+//  Gifts: UncommonGoods (ShareASale), Not On The High Street (UK), Minted
+// Add items here once affiliate IDs are confirmed — they appear under "Partner Gifts" in the Send a Gift modal.
+const AFFILIATE_PACKAGES = [];   // managed via Admin panel at runtime too
+
 const GIFT_ITEMS = [
-  { id: 'roses', cat: 'flowers', name: 'Red Roses', price: 49, icon: '❧', desc: 'Dozen long-stem roses.' },
-  { id: 'wild', cat: 'flowers', name: 'Wildflower Bouquet', price: 42, icon: '❧', desc: 'Seasonal wildflower mix.' },
-  { id: 'sunflowers', cat: 'flowers', name: 'Sunflowers', price: 38, icon: '❧', desc: 'Six tall sunflowers.' },
-  { id: 'cozy', cat: 'package', name: 'Cozy Night In', price: 68, icon: '◈', desc: 'Candle, tea, chocolate, card.' },
-  { id: 'snacks', cat: 'package', name: 'Snack Haul', price: 52, icon: '◈', desc: 'Curated snacks worldwide.' },
-  { id: 'spa', cat: 'package', name: 'Spa at Home', price: 75, icon: '◈', desc: 'Face mask, salts, oils, socks.' },
+  { id:'roses',      cat:'flowers', name:'Red Roses',          price:49, icon:'❧', desc:'A dozen long-stem red roses.' },
+  { id:'wild',       cat:'flowers', name:'Wildflower Bouquet', price:42, icon:'❧', desc:'Seasonal wildflower mix.' },
+  { id:'sunflowers', cat:'flowers', name:'Sunflowers',         price:38, icon:'❧', desc:'Six tall sunflowers.' },
+  { id:'orchid',     cat:'flowers', name:'Orchid Plant',       price:55, icon:'❧', desc:'Living orchid — lasts for weeks.' },
+  { id:'cozy',       cat:'package', name:'Cozy Night In',      price:68, icon:'◈', desc:'Candle, herbal tea, chocolate, card.' },
+  { id:'snacks',     cat:'package', name:'Snack Haul',         price:52, icon:'◈', desc:'Curated snacks from around the world.' },
+  { id:'spa',        cat:'package', name:'Spa at Home',        price:75, icon:'◈', desc:'Face mask, bath salts, oils, socks.' },
+  { id:'book',       cat:'package', name:'Book & Coffee',      price:44, icon:'◈', desc:'Bestselling novel + specialty coffee.' },
+  { id:'custom',     cat:'package', name:'Custom Box',         price:90, icon:'◈', desc:'You choose — we curate and ship.' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function fmt(date, tz, opts = {}) {
-  try { return new Intl.DateTimeFormat('en-US', { timeZone: tz, ...opts }).format(date); }
+function fmt(date, tz, opts={}) {
+  try   { return new Intl.DateTimeFormat('en-US',{timeZone:tz,...opts}).format(date); }
   catch { return '–'; }
 }
-
 function getOffsetH(tz) {
-  const now = new Date();
-  const local = new Date(now.toLocaleString('en-US', { timeZone: tz }));
-  const utc = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
-  return Math.round((local - utc) / 3600000);
+  const now=new Date(), local=new Date(now.toLocaleString('en-US',{timeZone:tz})), utc=new Date(now.toLocaleString('en-US',{timeZone:'UTC'}));
+  return Math.round((local-utc)/3600000);
 }
-
-function tzDiff(tzA, tzB, nameB) {
-  const diff = getOffsetH(tzB) - getOffsetH(tzA);
-  if (diff === 0) return `${nameB} is in the same time zone`;
-  return diff > 0 ? `${nameB} is ${diff}h ahead` : `${nameB} is ${Math.abs(diff)}h behind`;
+function tzDiff(tzA,tzB,nameB) {
+  const diff=getOffsetH(tzB)-getOffsetH(tzA);
+  if(diff===0) return `${nameB} is in the same time zone`;
+  return diff>0?`${nameB} is ${diff}h ahead`:`${nameB} is ${Math.abs(diff)}h behind`;
 }
-
-function evtTime(ev, tz) {
-  try { return fmt(new Date(`${ev.date}T${ev.time}`), tz, { hour: '2-digit', minute: '2-digit', hour12: true }); }
+function evtTime(ev,tz) {
+  try   { return fmt(new Date(`${ev.date}T${ev.time}`),tz,{hour:'2-digit',minute:'2-digit',hour12:true}); }
   catch { return '–'; }
 }
-
-function encodeShare(data) { try { return btoa(unescape(encodeURIComponent(JSON.stringify(data)))); } catch { return ''; } }
-function decodeShare(value) { try { return JSON.parse(decodeURIComponent(escape(atob(value)))); } catch { return null; } }
-function dateLabel(dateString) { try { return new Date(`${dateString}T12:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return dateString; } }
+function encodeShare(d) { try{return btoa(unescape(encodeURIComponent(JSON.stringify(d))));}catch{return '';} }
+function decodeShare(v) { try{return JSON.parse(decodeURIComponent(escape(atob(v))));}catch{return null;} }
+function dateLabel(ds)  { try{return new Date(`${ds}T12:00`).toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch{return ds;} }
 
 const LS = {
-  get: (key, fallback = null) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },
-  set: (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} },
-  del: (key) => { try { localStorage.removeItem(key); } catch {} },
+  get:(k,fb=null)=>{ try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;} },
+  set:(k,v)=>{ try{localStorage.setItem(k,JSON.stringify(v));}catch{} },
+  del:(k)=>{ try{localStorage.removeItem(k);}catch{} },
 };
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
-const IS = (x = {}) => ({ background: '#fff', border: `1px solid ${T.border}`, borderRadius: '10px', color: T.text1, padding: '10px 14px', fontSize: '14px', width: '100%', outline: 'none', boxSizing: 'border-box', fontFamily: "'DM Sans', sans-serif", ...x });
-const PB = (x = {}) => ({ background: T.accent, border: 'none', borderRadius: '10px', color: '#fff', padding: '10px 22px', fontWeight: 700, cursor: 'pointer', fontSize: '13px', letterSpacing: '0.04em', fontFamily: "'DM Sans', sans-serif", ...x });
-const GB = (x = {}) => ({ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: '10px', color: T.text2, padding: '10px 18px', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Sans', sans-serif", ...x });
-const DB = { background: '#fdf0f0', border: '1px solid #e0b0b0', borderRadius: '10px', color: T.danger, padding: '10px 16px', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Sans', sans-serif" };
-const pill = (active, accent = T.accent) => ({ background: active ? `${accent}18` : T.surface2, border: `1px solid ${active ? `${accent}60` : T.border}`, borderRadius: '40px', color: active ? accent : T.text3, padding: '7px 16px', cursor: 'pointer', fontSize: '12px', letterSpacing: '0.06em', fontFamily: "'DM Sans', sans-serif", fontWeight: active ? 600 : 400, transition: 'all 0.15s' });
+const IS  = (x={})=>({background:'#fff',border:`1px solid ${T.border}`,borderRadius:'10px',color:T.text1,padding:'10px 14px',fontSize:'14px',width:'100%',outline:'none',boxSizing:'border-box',fontFamily:"'DM Sans',sans-serif",...x});
+const PB  = (x={})=>({background:T.accent,border:'none',borderRadius:'10px',color:'#fff',padding:'10px 22px',fontWeight:700,cursor:'pointer',fontSize:'13px',letterSpacing:'0.04em',fontFamily:"'DM Sans',sans-serif",...x});
+const GB  = (x={})=>({background:T.surface2,border:`1px solid ${T.border}`,borderRadius:'10px',color:T.text2,padding:'10px 18px',cursor:'pointer',fontSize:'13px',fontFamily:"'DM Sans',sans-serif",...x});
+const DB  = {background:'#fdf0f0',border:'1px solid #e0b0b0',borderRadius:'10px',color:T.danger,padding:'10px 16px',cursor:'pointer',fontSize:'13px',fontFamily:"'DM Sans',sans-serif"};
+const SB  = (active,accent=T.accent)=>({background:active?`${accent}18`:T.surface2,border:`1px solid ${active?`${accent}60`:T.border}`,borderRadius:'40px',color:active?accent:T.text3,padding:'7px 16px',cursor:'pointer',fontSize:'12px',letterSpacing:'0.06em',fontFamily:"'DM Sans',sans-serif",fontWeight:active?600:400,transition:'all 0.15s'});
 
-const CSS = `
+const CSS=`
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { background: #faf6f0; }
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: #f2ece2; }
-::-webkit-scrollbar-thumb { background: #c8b89a; border-radius: 3px; }
-input::placeholder, textarea::placeholder { color: #b0988a; }
-select option { background: #fff; color: #1a1208; }
-.day-cell:hover { background: #ece4d6 !important; }
-.lift:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.1) !important; transition: transform 0.18s, box-shadow 0.18s; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:#faf6f0;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:#f2ece2;}
+::-webkit-scrollbar-thumb{background:#c8b89a;border-radius:3px;}
+input::placeholder,textarea::placeholder{color:#b0988a;}
+select option{background:#fff;color:#1a1208;}
+.day-cell:hover{background:#ece4d6!important;}
+.lift:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,0.1)!important;transition:transform 0.18s,box-shadow 0.18s;}
 `;
 
-// ─── Components (Auth, Traffic, etc) ──────────────────────────────────────────
+// ─── Small reusable atoms ────────────────────────────────────────────────────
+const Label = ({children,color=T.text3})=>(
+  <div style={{fontSize:'11px',letterSpacing:'0.14em',color,textTransform:'uppercase',marginBottom:'7px',fontWeight:600}}>{children}</div>
+);
+const Overlay = ({onClose,zIndex=200,children})=>(
+  <div style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex,padding:'20px',backdropFilter:'blur(4px)'}} onClick={onClose}>{children}</div>
+);
+const Card = ({children,style={}})=>(
+  <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'28px',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',...style}}>{children}</div>
+);
 
-function AuthModal({ onLogin }) {
-  const [tab, setTab] = useState('email');
-  const [email, setEmail] = useState('');
-  const [pass, setPass] = useState('');
-  const [name, setName] = useState('');
-
-  function handleEmailSignup() {
-    if (!email || !pass || !name) return;
-    // TODO: Firebase.auth().createUserWithEmailAndPassword(email, pass)
-    onLogin({ id: Date.now(), email, name, authMethod: 'email' });
-  }
-
-  function handleAppleSignIn() {
-    // TODO: Integrate Apple Sign In SDK
-    console.log('Apple Sign In clicked — implement with AppleID SDK');
-    onLogin({ id: Date.now(), email: 'user@apple.com', name: 'User', authMethod: 'apple' });
-  }
-
-  function handleGoogleSignIn() {
-    // TODO: google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID })
-    console.log('Google Sign In clicked — implement with Google OAuth');
-    onLogin({ id: Date.now(), email: 'user@google.com', name: 'User', authMethod: 'google' });
-  }
-
+// ─── TzSelect ────────────────────────────────────────────────────────────────
+function TzSelect({value,onChange,style}) {
+  const regions=[...new Set(TIMEZONES.map(t=>t.region))];
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,8,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px', backdropFilter: 'blur(4px)' }}>
-      <div style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: '22px', padding: '28px', width: '100%', maxWidth: '420px', boxShadow: '0 24px 80px rgba(0,0,0,0.2)' }}>
-        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', color: T.text1, marginBottom: '4px', fontWeight: 600 }}>Join Ophelia</div>
-        <div style={{ fontSize: '13px', color: T.text3, marginBottom: '20px' }}>Your calendar across time zones.</div>
-
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-          {[{ id: 'email', label: 'Email' }, { id: 'social', label: 'Social' }].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{ ...GB({ flex: 1, textAlign: 'center', padding: '8px 12px' }), background: tab === t.id ? `${T.accent}15` : T.surface2, border: `1px solid ${tab === t.id ? `${T.accent}60` : T.border}`, color: tab === t.id ? T.accent : T.text3, fontWeight: tab === t.id ? 700 : 400 }}>{t.label}</button>
-          ))}
-        </div>
-
-        {tab === 'email' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <input placeholder="Full name" value={name} onChange={e => setName(e.target.value)} style={IS()} />
-            <input type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} style={IS()} />
-            <input type="password" placeholder="Password (8+ chars)" value={pass} onChange={e => setPass(e.target.value)} style={IS()} />
-            <button onClick={handleEmailSignup} style={PB({ width: '100%', padding: '12px', textAlign: 'center' })}>Create Account</button>
-          </div>
-        )}
-
-        {tab === 'social' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button onClick={handleGoogleSignIn} style={GB({ width: '100%', padding: '12px', textAlign: 'center', background: '#fff', border: '1px solid #ddd', color: '#000' })}>
-              &#9670;&ensp;Sign in with Google
-            </button>
-            <button onClick={handleAppleSignIn} style={GB({ width: '100%', padding: '12px', textAlign: 'center', background: '#000', border: '1px solid #000', color: '#fff' })}>
-              &#9670;&ensp;Sign in with Apple
-            </button>
-            <div style={{ fontSize: '12px', color: T.text4, textAlign: 'center', marginTop: '8px' }}>Your data stays private. No sharing.</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TrafficAlert({ event, homeLocation, onUpdate }) {
-  const [showTraffic, setShowTraffic] = useState(false);
-  const [trafficData, setTrafficData] = useState(null);
-  const [leaveTime, setLeaveTime] = useState(null);
-
-  useEffect(() => {
-    if (!showTraffic || !homeLocation) return;
-    // TODO: Fetch from Google Maps Distance Matrix API
-    // GET https://maps.googleapis.com/maps/api/distancematrix/json?origins=...&destinations=...&departure_time=now&key=GOOGLE_MAPS_API_KEY
-    // For now: simulate
-    setTrafficData({
-      driveDuration: 30,
-      trafficDuration: 45,
-      leaveAt: new Date(new Date(`${event.date}T${event.time}`) - 45 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-    });
-  }, [showTraffic, homeLocation, event]);
-
-  if (!event.location) return null;
-
-  return (
-    <div style={{ background: `${T.sky}10`, border: `1px solid ${T.sky}30`, borderRadius: '10px', padding: '12px 14px', marginTop: '8px', fontSize: '12px', color: T.sky }}>
-      <button onClick={() => setShowTraffic(!showTraffic)} style={{ background: 'none', border: 'none', color: T.sky, cursor: 'pointer', fontWeight: 700, fontSize: '12px' }}>
-        &#8618;&ensp;{showTraffic ? 'Hide' : 'Check'} Traffic
-      </button>
-      {trafficData && (
-        <div style={{ marginTop: '8px', fontSize: '11px', lineHeight: 1.6 }}>
-          Drive time: {trafficData.driveDuration}m (normal) → {trafficData.trafficDuration}m (with traffic)<br/>
-          <strong>Leave at: {trafficData.leaveAt}</strong>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AdminPanel({ onClose }) {
-  const [authed, setAuthed] = useState(false);
-  const [pass, setPass] = useState('');
-  const [passError, setPassError] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [users, setUsers] = useState(() => LS.get('ophelia_users', []));
-  const [affPackages, setAffPackages] = useState(() => LS.get('ophelia_affiliate_packages', []));
-
-  function login() {
-    if (pass === ADMIN_PASSCODE) { setAuthed(true); setPassError(false); }
-    else { setPassError(true); }
-  }
-
-  if (!authed) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,20,40,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, backdropFilter: 'blur(6px)' }} onClick={onClose}>
-        <div style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: '22px', padding: '36px', width: '100%', maxWidth: '360px', textAlign: 'center', boxShadow: '0 32px 80px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
-          <div style={{ fontSize: '11px', letterSpacing: '0.3em', color: T.admin, textTransform: 'uppercase', fontWeight: 700, marginBottom: '8px' }}>Admin Access</div>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '26px', color: T.text1, fontWeight: 600, marginBottom: '24px' }}>Ophelia Control</div>
-          <input type="password" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && login()} placeholder="Admin passcode..." style={IS({ marginBottom: '12px', textAlign: 'center' })} />
-          {passError && <div style={{ fontSize: '12px', color: T.danger, marginBottom: '10px' }}>Incorrect passcode</div>}
-          <button onClick={login} style={PB({ width: '100%', padding: '12px', textAlign: 'center', background: T.admin })}>Enter</button>
-          <button onClick={onClose} style={{ ...GB({ width: '100%', textAlign: 'center', marginTop: '8px' }) }}>Cancel</button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,20,40,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, backdropFilter: 'blur(4px)', padding: '16px' }} onClick={onClose}>
-      <div style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: '22px', width: '100%', maxWidth: '720px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: T.sage }} />
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', fontWeight: 600, color: T.text1 }}>Admin Panel</div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: T.text3, cursor: 'pointer', fontSize: '18px' }}>&#10005;</button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '4px', padding: '12px 24px 0', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
-          {[{ id: 'overview', label: 'Overview' }, { id: 'users', label: 'Users' }, { id: 'packages', label: 'Packages' }].map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)} style={{ padding: '8px 16px', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer', background: activeTab === t.id ? '#fff' : 'transparent', color: activeTab === t.id ? T.admin : T.text3, fontWeight: activeTab === t.id ? 700 : 400, fontSize: '13px', fontFamily: "'DM Sans', sans-serif", borderBottom: activeTab === t.id ? `2px solid ${T.admin}` : '2px solid transparent' }}>{t.label}</button>
-          ))}
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-          {activeTab === 'overview' && (
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '12px', marginBottom: '24px' }}>
-                {[
-                  { label: 'Total Users', value: users.length },
-                  { label: 'Affiliate Items', value: affPackages.length },
-                ].map(stat => (
-                  <div key={stat.label} style={{ background: '#fff', border: `1px solid ${T.border}`, borderRadius: '14px', padding: '18px 16px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '28px', color: T.admin, fontWeight: 700, fontFamily: "'Cormorant Garamond', serif" }}>{stat.value}</div>
-                    <div style={{ fontSize: '12px', color: T.text2, fontWeight: 600, marginTop: '2px' }}>{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ background: '#fff', border: `1px solid ${T.border}`, borderRadius: '14px', padding: '18px' }}>
-                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '17px', fontWeight: 600, color: T.text1, marginBottom: '12px' }}>Setup Tasks</div>
-                {[
-                  'Add Stripe API keys to App.js',
-                  'Set up Google Maps Distance Matrix API for traffic alerts',
-                  'Configure Firebase auth & Firestore for user data',
-                  'Add Google OAuth & Apple Sign In credentials',
-                  'Join affiliate programs (1-800-Flowers, FTD, etc)',
-                  'Set up email notifications (SendGrid / AWS SES)',
-                ].map((t, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '10px', fontSize: '13px', color: T.text2, marginBottom: '8px', lineHeight: 1.5 }}>
-                    <span style={{ color: T.accent, flexShrink: 0 }}>&#9670;</span><span>{t}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'users' && (
-            <div>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', fontWeight: 600, color: T.text1, marginBottom: '16px' }}>Users</div>
-              {users.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 20px', background: T.surface, border: `1px dashed ${T.border2}`, borderRadius: '14px', color: T.text4 }}>No users yet</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {users.map(u => (
-                    <div key={u.id} style={{ background: '#fff', border: `1px solid ${T.border}`, borderRadius: '12px', padding: '14px 16px' }}>
-                      <div style={{ fontWeight: 600, color: T.text1 }}>{u.name}</div>
-                      <div style={{ fontSize: '12px', color: T.text3 }}>{u.email} · {u.authMethod}</div>
-                      <div style={{ fontSize: '11px', color: T.text4, marginTop: '4px' }}>Plan: {u.plan || 'free'}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'packages' && (
-            <div>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', fontWeight: 600, color: T.text1, marginBottom: '16px' }}>Affiliate Packages</div>
-              {affPackages.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 20px', background: T.surface, border: `1px dashed ${T.border2}`, borderRadius: '14px', color: T.text4 }}>No packages configured. Add them via Gift Modal.</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {affPackages.map(p => (
-                    <div key={p.id} style={{ background: '#fff', border: `1px solid ${T.border}`, borderRadius: '12px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div><div style={{ fontWeight: 600, color: T.text1 }}>{p.name}</div><div style={{ fontSize: '11px', color: T.text3 }}>${p.price} · {p.affiliateId}</div></div>
-                      <button onClick={() => setAffPackages(prev => prev.filter(x => x.id !== p.id))} style={{ ...DB, padding: '6px 12px', fontSize: '12px' }}>Remove</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TzSelect({ value, onChange, style }) {
-  const regions = [...new Set(TIMEZONES.map(t => t.region))];
-  return (
-    <select value={value} onChange={onChange} style={style || IS()}>
-      {regions.map(region => (
-        <optgroup key={region} label={region}>
-          {TIMEZONES.filter(t => t.region === region).map(t => (
-            <option key={t.value} value={t.value}>{t.label}</option>
+    <select value={value} onChange={onChange} style={style||IS()}>
+      {regions.map(r=>(
+        <optgroup key={r} label={r}>
+          {TIMEZONES.filter(t=>t.region===r).map(t=>(
+            <option key={`${t.value}-${t.label}`} value={t.value}>{t.label}</option>
           ))}
         </optgroup>
       ))}
@@ -424,357 +261,996 @@ function TzSelect({ value, onChange, style }) {
   );
 }
 
-function Clock({ tz, label, accent = T.accent, tag }) {
-  const [time, setTime] = useState(new Date());
-  useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id); }, []);
-  return (
-    <div style={{ background: '#fff', border: `1px solid ${T.border}`, borderRadius: '16px', padding: '16px 20px', textAlign: 'center', flex: 1, minWidth: 0, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', position: 'relative' }}>
-      {tag && <div style={{ position: 'absolute', top: '8px', right: '10px', fontSize: '9px', letterSpacing: '0.14em', color: T.sage, fontWeight: 700, textTransform: 'uppercase' }}>{tag}</div>}
-      <div style={{ fontSize: '10px', letterSpacing: '0.18em', color: accent, textTransform: 'uppercase', marginBottom: '4px', fontFamily: "'Cormorant Garamond', serif", fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: '28px', fontFamily: "'Cormorant Garamond', serif", color: T.text1, fontWeight: 600, lineHeight: 1 }}>{fmt(time, tz, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</div>
-      <div style={{ fontSize: '12px', color: T.text3, marginTop: '4px' }}>{fmt(time, tz, { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-    </div>
-  );
-}
+// ─── AuthScreen ───────────────────────────────────────────────────────────────
+function AuthScreen({onComplete}) {
+  const [mode,  setMode]  = useState('signin');   // 'signin' | 'signup'
+  const [email, setEmail] = useState('');
+  const [pass,  setPass]  = useState('');
+  const [name,  setName]  = useState('');
+  const [err,   setErr]   = useState('');
 
-function EventCard({ ev, tzA, tzB, labelA, labelB, onClick }) {
-  const tA = evtTime(ev, tzA);
-  const tB = tzB ? evtTime(ev, tzB) : null;
-  return (
-    <div onClick={onClick} style={{ background: '#fff', border: `1px solid ${T.border}`, borderLeft: `4px solid ${ev.color}`, borderRadius: '12px', padding: '12px 16px', cursor: 'pointer', display: 'flex', gap: '12px', alignItems: 'flex-start', boxShadow: '0 1px 6px rgba(0,0,0,0.05)' }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '14px', color: T.text1, fontWeight: 600, marginBottom: '4px' }}>{ev.title}</div>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '12px' }}>
-          <span><span style={{ color: T.text4 }}>{labelA} </span><span style={{ color: T.accent, fontWeight: 600 }}>{tA}</span></span>
-          {tB && (<><span style={{ color: T.border2 }}>&#9670;</span><span><span style={{ color: T.text4 }}>{labelB} </span><span style={{ color: T.lavender, fontWeight: 600 }}>{tB}</span></span></>)}
-        </div>
-        {ev.recurrence && ev.recurrence !== 'none' && <div style={{ fontSize: '10px', color: T.sage, marginTop: '4px', fontWeight: 600 }}>Every {ev.recurrence}</div>}
-        {ev.note && <div style={{ fontSize: '11px', color: T.text3, marginTop: '3px', fontStyle: 'italic' }}>{ev.note}</div>}
-      </div>
-      <div style={{ fontSize: '11px', color: T.text4, whiteSpace: 'nowrap', paddingTop: '2px' }}>{dateLabel(ev.date)}</div>
-    </div>
-  );
-}
+  function handleEmail(e) {
+    e.preventDefault();
+    if(!email||!pass) { setErr('Please fill in all fields.'); return; }
+    if(mode==='signup'&&!name) { setErr('Please enter your name.'); return; }
+    setErr('');
+    // TODO: Replace with Firebase auth
+    // firebase.auth().signInWithEmailAndPassword(email, pass) — sign in
+    // firebase.auth().createUserWithEmailAndPassword(email, pass) — sign up
+    const user = { id:Date.now(), email, name:name||email.split('@')[0], authMethod:'email' };
+    const stored = LS.get('ophelia_users',[]);
+    if(!stored.find(u=>u.email===email)) LS.set('ophelia_users',[...stored,user]);
+    onComplete(user);
+  }
 
-function EventModal({ event, tzA, tzB, labelA, labelB, onClose, onSave, onDelete }) {
-  const [title, setTitle] = useState(event?.title || '');
-  const [date, setDate] = useState(event?.date || '');
-  const [time, setTime] = useState(event?.time || '12:00');
-  const [tz, setTz] = useState(event?.tz || tzA);
-  const [recurrence, setRecurrence] = useState(event?.recurrence || 'none');
-  const [location, setLocation] = useState(event?.location || '');
-  const [color, setColor] = useState(event?.color || EVENT_COLORS[0].value);
-  const [note, setNote] = useState(event?.note || '');
+  function handleGoogle() {
+    // TODO: Replace with Firebase Google Sign-In
+    // const provider = new firebase.auth.GoogleAuthProvider();
+    // firebase.auth().signInWithPopup(provider).then(result => onComplete(result.user));
+    const user = { id:Date.now(), email:'', name:'Google User', authMethod:'google' };
+    onComplete(user);
+  }
 
-  const otherTz = tz === tzA ? tzB : tzA;
-  const otherLabel = tz === tzA ? labelB : labelA;
-  let converted = '';
-  if (date && time && otherTz) {
-    try { converted = fmt(new Date(`${date}T${time}`), otherTz, { hour: '2-digit', minute: '2-digit', hour12: true, month: 'short', day: 'numeric' }); } catch {}
+  function handleApple() {
+    // TODO: Replace with Firebase Apple Sign-In
+    // const provider = new firebase.auth.OAuthProvider('apple.com');
+    // firebase.auth().signInWithPopup(provider).then(result => onComplete(result.user));
+    const user = { id:Date.now(), email:'', name:'Apple User', authMethod:'apple' };
+    onComplete(user);
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,8,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px', backdropFilter: 'blur(4px)' }} onClick={onClose}>
-      <div style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: '22px', padding: '28px', width: '100%', maxWidth: '440px', boxShadow: '0 24px 80px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', color: T.text1, marginBottom: '20px', fontWeight: 600 }}>{event?.id ? 'Edit Event' : 'New Event'}</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <input placeholder="Event title..." value={title} onChange={e => setTitle(e.target.value)} style={IS()} />
-          <input placeholder="Location (for traffic alerts)" value={location} onChange={e => setLocation(e.target.value)} style={IS()} />
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} style={IS({ flex: 1, width: 'auto' })} />
-            <input type="time" value={time} onChange={e => setTime(e.target.value)} style={IS({ flex: 1, width: 'auto' })} />
+    <div style={{minHeight:'100vh',background:T.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px',fontFamily:"'DM Sans',sans-serif"}}>
+      <div style={{maxWidth:'400px',width:'100%'}}>
+        <div style={{textAlign:'center',marginBottom:'32px'}}>
+          <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(48px,12vw,72px)',fontWeight:300,color:T.text1,lineHeight:0.9,letterSpacing:'-0.02em',marginBottom:'8px'}}>Ophelia</h1>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'16px',color:T.text3,fontStyle:'italic'}}>{mode==='signup'?'Create your account':'Welcome back'}</div>
+        </div>
+
+        {/* Social */}
+        <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'20px'}}>
+          <button onClick={handleGoogle} style={{...GB({width:'100%',padding:'12px',textAlign:'center',background:'#fff',border:`1px solid ${T.border}`}),display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',fontWeight:500}}>
+            <span style={{fontSize:'14px'}}>&#9673;</span> Continue with Google
+          </button>
+          <button onClick={handleApple} style={{...GB({width:'100%',padding:'12px',textAlign:'center',background:'#111',border:'1px solid #111',color:'#fff'}),display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',fontWeight:500}}>
+            <span style={{fontSize:'14px'}}>&#63743;</span> Continue with Apple
+          </button>
+        </div>
+
+        <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'20px'}}>
+          <div style={{flex:1,height:'1px',background:T.border}}/>
+          <div style={{fontSize:'12px',color:T.text4}}>or with email</div>
+          <div style={{flex:1,height:'1px',background:T.border}}/>
+        </div>
+
+        <form onSubmit={handleEmail} style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+          {mode==='signup'&&<input placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} style={IS()} />}
+          <input type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} style={IS()} />
+          <input type="password" placeholder="Password (8+ characters)" value={pass} onChange={e=>setPass(e.target.value)} style={IS()} />
+          {err&&<div style={{fontSize:'12px',color:T.danger,background:'#fdf0f0',border:'1px solid #e0b0b0',borderRadius:'8px',padding:'8px 12px'}}>{err}</div>}
+          <button type="submit" style={PB({width:'100%',padding:'13px',textAlign:'center',borderRadius:'12px'})}>
+            {mode==='signup'?'Create Account':'Sign In'} &#8594;
+          </button>
+        </form>
+
+        <div style={{textAlign:'center',marginTop:'16px',fontSize:'13px',color:T.text3}}>
+          {mode==='signup'?'Already have an account?':'New to Ophelia?'}
+          <button onClick={()=>{setMode(mode==='signup'?'signin':'signup');setErr('');}} style={{background:'none',border:'none',color:T.accent,cursor:'pointer',fontWeight:700,marginLeft:'5px',fontSize:'13px'}}>
+            {mode==='signup'?'Sign in':'Create one'}
+          </button>
+        </div>
+
+        <div style={{textAlign:'center',marginTop:'24px',fontSize:'11px',color:T.text4,lineHeight:1.6}}>
+          By continuing you agree to our Terms of Service and Privacy Policy.<br/>
+          Your data is stored securely and never sold.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Clock ────────────────────────────────────────────────────────────────────
+function Clock({tz,label,accent=T.accent,tag}) {
+  const [time,setTime]=useState(new Date());
+  useEffect(()=>{const id=setInterval(()=>setTime(new Date()),1000);return()=>clearInterval(id);},[]);
+  return (
+    <div style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'16px',padding:'16px 20px',textAlign:'center',flex:1,minWidth:0,boxShadow:'0 2px 12px rgba(0,0,0,0.06)',position:'relative'}}>
+      {tag&&<div style={{position:'absolute',top:'8px',right:'10px',fontSize:'9px',letterSpacing:'0.14em',color:T.sage,fontWeight:700,textTransform:'uppercase'}}>{tag}</div>}
+      <div style={{fontSize:'10px',letterSpacing:'0.18em',color:accent,textTransform:'uppercase',marginBottom:'4px',fontFamily:"'Cormorant Garamond',serif",fontWeight:600}}>{label}</div>
+      <div style={{fontSize:'28px',fontFamily:"'Cormorant Garamond',serif",color:T.text1,fontWeight:600,lineHeight:1}}>{fmt(time,tz,{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true})}</div>
+      <div style={{fontSize:'12px',color:T.text3,marginTop:'4px'}}>{fmt(time,tz,{weekday:'short',month:'short',day:'numeric'})}</div>
+    </div>
+  );
+}
+
+// ─── EventCard ────────────────────────────────────────────────────────────────
+function EventCard({ev,tzA,tzB,labelA,labelB,onClick}) {
+  const tA=evtTime(ev,tzA), tB=tzB?evtTime(ev,tzB):null;
+  return (
+    <div onClick={onClick} style={{background:'#fff',border:`1px solid ${T.border}`,borderLeft:`4px solid ${ev.color}`,borderRadius:'12px',padding:'12px 16px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'flex-start',boxShadow:'0 1px 6px rgba(0,0,0,0.05)'}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:'14px',color:T.text1,fontWeight:600,marginBottom:'4px'}}>{ev.title}</div>
+        <div style={{display:'flex',gap:'12px',flexWrap:'wrap',fontSize:'12px'}}>
+          <span><span style={{color:T.text4}}>{labelA} </span><span style={{color:T.accent,fontWeight:600}}>{tA}</span></span>
+          {tB&&<><span style={{color:T.border2}}>&#9670;</span><span><span style={{color:T.text4}}>{labelB} </span><span style={{color:T.lavender,fontWeight:600}}>{tB}</span></span></>}
+        </div>
+        {ev.location&&<div style={{fontSize:'11px',color:T.sky,marginTop:'3px'}}>&#9671; {ev.location}</div>}
+        {ev.recurrence&&ev.recurrence!=='none'&&<div style={{fontSize:'10px',color:T.sage,marginTop:'3px',fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase'}}>Every {ev.recurrence}</div>}
+        {ev.note&&<div style={{fontSize:'11px',color:T.text3,marginTop:'3px',fontStyle:'italic'}}>{ev.note}</div>}
+      </div>
+      <div style={{fontSize:'11px',color:T.text4,whiteSpace:'nowrap',paddingTop:'2px'}}>{dateLabel(ev.date)}</div>
+    </div>
+  );
+}
+
+// ─── Traffic Alert ────────────────────────────────────────────────────────────
+function TrafficAlert({event,homeLocation}) {
+  const [open,setOpen]=useState(false);
+  // TODO: call Google Maps Distance Matrix API when open=true
+  // GET https://maps.googleapis.com/maps/api/distancematrix/json
+  //   ?origins=encodeURIComponent(homeLocation)
+  //   &destinations=encodeURIComponent(event.location)
+  //   &departure_time=now&traffic_model=best_guess&key=GOOGLE_MAPS_API_KEY
+  const simDrive=30, simTraffic=45;
+  const eventDt=new Date(`${event.date}T${event.time}`);
+  const leaveAt=new Date(eventDt-simTraffic*60000).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const isSlow=simTraffic>simDrive;
+  return (
+    <div style={{background:`${T.sky}0d`,border:`1px solid ${T.sky}30`,borderRadius:'10px',padding:'10px 14px',marginTop:'6px'}}>
+      <button onClick={()=>setOpen(o=>!o)} style={{background:'none',border:'none',color:T.sky,cursor:'pointer',fontWeight:600,fontSize:'12px',padding:0}}>
+        &#9660;&ensp;{open?'Hide':'Check'} Traffic
+      </button>
+      {open&&(
+        <div style={{marginTop:'8px',fontSize:'12px',color:T.text2,lineHeight:1.7}}>
+          <div>Drive time: {simDrive} min normally</div>
+          {isSlow&&<div style={{color:T.danger,fontWeight:600}}>&#9650; Traffic adds {simTraffic-simDrive} min today</div>}
+          <div style={{fontWeight:700,color:T.text1,marginTop:'4px'}}>Leave by {leaveAt} to arrive on time</div>
+          <a href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(homeLocation||'')}&destination=${encodeURIComponent(event.location||'')}`} target="_blank" rel="noopener noreferrer" style={{color:T.sky,fontSize:'11px',marginTop:'4px',display:'inline-block'}}>Open in Google Maps &#8594;</a>
+          <div style={{fontSize:'10px',color:T.text4,marginTop:'4px'}}>Live traffic: add GOOGLE_MAPS_API_KEY to App.js</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── EventModal ───────────────────────────────────────────────────────────────
+function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,onClose,onSave,onDelete}) {
+  const [title,     setTitle]     = useState(event?.title      || '');
+  const [date,      setDate]      = useState(event?.date       || '');
+  const [time,      setTime]      = useState(event?.time       || '12:00');
+  const [tz,        setTz]        = useState(event?.tz         || tzA);
+  const [recurrence,setRecurrence]= useState(event?.recurrence || 'none');
+  const [location,  setLocation]  = useState(event?.location   || '');
+  const [color,     setColor]     = useState(event?.color      || EVENT_COLORS[0].value);
+  const [note,      setNote]      = useState(event?.note       || '');
+
+  const otherTz=tz===tzA?tzB:tzA, otherLabel=tz===tzA?labelB:labelA;
+  let converted='';
+  if(date&&time&&otherTz) try{converted=fmt(new Date(`${date}T${time}`),otherTz,{hour:'2-digit',minute:'2-digit',hour12:true,month:'short',day:'numeric'});}catch{}
+
+  return (
+    <Overlay onClose={onClose}>
+      <Card style={{maxWidth:'440px'}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,marginBottom:'20px',fontWeight:600}}>{event?.id?'Edit Event':'New Event'}</div>
+        <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+          <input placeholder="Event title..." value={title} onChange={e=>setTitle(e.target.value)} style={IS()} />
+          <input placeholder="Location (optional — enables traffic alerts)" value={location} onChange={e=>setLocation(e.target.value)} style={IS()} />
+          <div style={{display:'flex',gap:'10px'}}>
+            <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={IS({flex:1,width:'auto'})} />
+            <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={IS({flex:1,width:'auto'})} />
           </div>
+
           <div>
-            <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: T.text3, textTransform: 'uppercase', marginBottom: '7px', fontWeight: 600 }}>Repeat</div>
-            <select value={recurrence} onChange={e => setRecurrence(e.target.value)} style={IS()}>
-              {RECURRENCE.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+            <Label>Repeat</Label>
+            <select value={recurrence} onChange={e=>setRecurrence(e.target.value)} style={IS()}>
+              {RECURRENCE_OPTIONS.map(r=><option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)}
             </select>
           </div>
-          {tzB && (
+
+          {tzB&&(
             <div>
-              <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: T.text3, textTransform: 'uppercase', marginBottom: '7px', fontWeight: 600 }}>Timezone</div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {[{ label: labelA, value: tzA }, { label: labelB, value: tzB }].map(item => (
-                  <button key={item.value} onClick={() => setTz(item.value)} style={{ ...GB({ flex: 1, textAlign: 'center', padding: '8px 12px' }), background: tz === item.value ? `${T.accent}15` : T.surface2, border: `1px solid ${tz === item.value ? `${T.accent}60` : T.border}`, color: tz === item.value ? T.accent : T.text3, fontWeight: tz === item.value ? 700 : 400 }}>{item.label}</button>
+              <Label>Whose timezone?</Label>
+              <div style={{display:'flex',gap:'8px'}}>
+                {[{label:labelA,value:tzA},{label:labelB,value:tzB}].map(item=>(
+                  <button key={item.value} onClick={()=>setTz(item.value)} style={{...GB({flex:1,textAlign:'center',padding:'8px 12px'}),background:tz===item.value?`${T.accent}15`:T.surface2,border:`1px solid ${tz===item.value?`${T.accent}60`:T.border}`,color:tz===item.value?T.accent:T.text3,fontWeight:tz===item.value?700:400}}>{item.label}</button>
                 ))}
               </div>
             </div>
           )}
-          {converted && <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: T.text2 }}>&#8758; For <strong>{otherLabel}</strong>, this is <span style={{ color: T.accent, fontWeight: 700 }}>{converted}</span></div>}
-          <textarea placeholder="Notes..." value={note} onChange={e => setNote(e.target.value)} rows={2} style={IS({ resize: 'none' })} />
+
+          {converted&&<div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'10px',padding:'10px 14px',fontSize:'13px',color:T.text2}}>&#8758; For <strong>{otherLabel}</strong>, this is <span style={{color:T.accent,fontWeight:700}}>{converted}</span></div>}
+
+          {location&&homeLocation&&date&&time&&<TrafficAlert event={{date,time,location}} homeLocation={homeLocation}/>}
+
+          <textarea placeholder="Notes (optional)..." value={note} onChange={e=>setNote(e.target.value)} rows={2} style={IS({resize:'none'})}/>
+
           <div>
-            <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: T.text3, textTransform: 'uppercase', marginBottom: '8px', fontWeight: 600 }}>Color</div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {EVENT_COLORS.map(c => (
-                <div key={c.value} title={c.name} onClick={() => setColor(c.value)} style={{ width: '26px', height: '26px', borderRadius: '50%', background: c.value, cursor: 'pointer', border: color === c.value ? `3px solid ${T.text1}` : '3px solid transparent', transition: 'border 0.12s' }} />
-              ))}
+            <Label>Colour</Label>
+            <div style={{display:'flex',gap:'8px'}}>
+              {EVENT_COLORS.map(c=><div key={c.value} title={c.name} onClick={()=>setColor(c.value)} style={{width:'26px',height:'26px',borderRadius:'50%',background:c.value,cursor:'pointer',border:color===c.value?`3px solid ${T.text1}`:'3px solid transparent',transition:'border 0.12s'}}/>)}
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', marginTop: '22px' }}>
-          {event?.id && <button onClick={() => onDelete(event.id)} style={DB}>Delete</button>}
-          <div style={{ flex: 1 }} />
+
+        <div style={{display:'flex',gap:'8px',marginTop:'22px'}}>
+          {event?.id&&<button onClick={()=>onDelete(event.id)} style={DB}>Delete</button>}
+          <div style={{flex:1}}/>
           <button onClick={onClose} style={GB()}>Cancel</button>
-          <button onClick={() => { if (!title || !date) return; onSave({ id: event?.id || Date.now(), title, date, time, tz, recurrence, location, color, note }); }} style={PB()}>Save</button>
+          <button onClick={()=>{if(!title||!date)return;onSave({id:event?.id||Date.now(),title,date,time,tz,recurrence,location,color,note});}} style={PB()}>Save</button>
+        </div>
+      </Card>
+    </Overlay>
+  );
+}
+
+// ─── MeetingFinder ────────────────────────────────────────────────────────────
+function MeetingFinder({tzA,tzB,labelA,labelB,onClose}) {
+  const offA=getOffsetH(tzA),offB=getOffsetH(tzB);
+  const slots=Array.from({length:24},(_,h)=>{
+    const hB=(((h-offA+offB)%24)+24)%24;
+    const sA=h>=9&&h<21?(h>=10&&h<20?2:1):0;
+    const sB=hB>=9&&hB<21?(hB>=10&&hB<20?2:1):0;
+    return{hA:h,hB,total:sA+sB};
+  });
+  const best=slots.filter(s=>s.total===4),good=slots.filter(s=>s.total===3),ok=slots.filter(s=>s.total===2);
+  const fmtH=h=>{const d=new Date();d.setHours(h,0,0,0);return d.toLocaleTimeString('en-US',{hour:'numeric',hour12:true});};
+  const Row=({slot,q})=>{
+    const col=q==='ideal'?T.sage:q==='good'?T.accent:T.text3;
+    return(
+      <div style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',background:'#fff',border:`1px solid ${T.border}`,borderRadius:'10px',marginBottom:'6px'}}>
+        <div style={{width:'6px',height:'6px',borderRadius:'50%',background:col,flexShrink:0}}/>
+        <div style={{flex:1,fontSize:'13px',color:T.text2}}>
+          <span style={{color:T.accent,fontWeight:600}}>{fmtH(slot.hA)}</span>
+          <span style={{color:T.text4,marginLeft:'4px',fontSize:'11px'}}>for {labelA}</span>
+          <span style={{color:T.border2,margin:'0 8px'}}>&#8644;</span>
+          <span style={{color:T.lavender,fontWeight:600}}>{fmtH(slot.hB)}</span>
+          <span style={{color:T.text4,marginLeft:'4px',fontSize:'11px'}}>for {labelB}</span>
+        </div>
+        <div style={{fontSize:'10px',letterSpacing:'0.1em',color:col,textTransform:'uppercase',fontWeight:700}}>{q}</div>
+      </div>
+    );
+  };
+  return (
+    <Overlay onClose={onClose}>
+      <Card style={{maxWidth:'450px',maxHeight:'78vh',overflowY:'auto'}}>
+        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'18px'}}>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600}}>Best Times to Meet</div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'18px'}}>&#10005;</button>
+        </div>
+        {best.length>0&&<><div style={{fontSize:'11px',letterSpacing:'0.14em',color:T.sage,textTransform:'uppercase',fontWeight:700,marginBottom:'9px'}}>&#9670; Ideal</div>{best.map((s,i)=><Row key={i} slot={s} q="ideal"/>)}</>}
+        {good.length>0&&<><div style={{fontSize:'11px',letterSpacing:'0.14em',color:T.accent,textTransform:'uppercase',fontWeight:700,margin:'16px 0 9px'}}>&#9670; Good</div>{good.map((s,i)=><Row key={i} slot={s} q="good"/>)}</>}
+        {ok.length>0  &&<><div style={{fontSize:'11px',letterSpacing:'0.14em',color:T.text3,textTransform:'uppercase',fontWeight:700,margin:'16px 0 9px'}}>&#9670; Possible</div>{ok.slice(0,5).map((s,i)=><Row key={i} slot={s} q="ok"/>)}</>}
+      </Card>
+    </Overlay>
+  );
+}
+
+// ─── NotesWall ────────────────────────────────────────────────────────────────
+function NotesWall({notes,labelA,labelB,onClose,onAdd,onDelete}) {
+  const [text,setText]=useState(''),[from,setFrom]=useState('A');
+  const endRef=useRef(null);
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'});},[notes.length]);
+  function submit(){if(!text.trim())return;onAdd({id:Date.now(),text:text.trim(),from,date:new Date().toISOString().split('T')[0]});setText('');}
+  return (
+    <Overlay onClose={onClose}>
+      <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',width:'100%',maxWidth:'480px',maxHeight:'82vh',display:'flex',flexDirection:'column',boxShadow:'0 24px 80px rgba(0,0,0,0.2)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'22px 24px 16px',borderBottom:`1px solid ${T.border}`,display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
+          <div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',fontWeight:600,color:T.text1}}>Love Notes</div>
+            <div style={{fontSize:'12px',color:T.text3,marginTop:'2px'}}>{notes.length} note{notes.length!==1?'s':''} saved</div>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'20px'}}>&#10005;</button>
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:'12px'}}>
+          {notes.length===0&&<div style={{textAlign:'center',padding:'40px 20px',color:T.text4,fontFamily:"'Cormorant Garamond',serif",fontSize:'17px',fontStyle:'italic'}}>No notes yet — write the first one ❧</div>}
+          {notes.map(n=>{const isA=n.from==='A',nm=isA?labelA:labelB,col=isA?T.accent:T.rose;return(
+            <div key={n.id} style={{display:'flex',flexDirection:'column',alignItems:isA?'flex-start':'flex-end'}}>
+              <div style={{maxWidth:'80%',background:isA?'#fff':`${T.rose}0f`,border:`1px solid ${isA?T.border:`${T.rose}30`}`,borderRadius:isA?'4px 18px 18px 18px':'18px 4px 18px 18px',padding:'14px 16px'}}>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'16px',fontStyle:'italic',color:T.text1,lineHeight:1.55,marginBottom:'8px'}}>"{n.text}"</div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'16px'}}>
+                  <div style={{fontSize:'11px',color:col,fontWeight:600}}>{nm}</div>
+                  <div style={{display:'flex',gap:'10px',alignItems:'center'}}>
+                    <div style={{fontSize:'11px',color:T.text4}}>{dateLabel(n.date)}</div>
+                    <button onClick={()=>onDelete(n.id)} style={{background:'none',border:'none',cursor:'pointer',color:T.border2,fontSize:'13px',padding:0}}>&#10005;</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );})}
+          <div ref={endRef}/>
+        </div>
+        <div style={{padding:'14px 20px 18px',borderTop:`1px solid ${T.border}`,flexShrink:0,background:T.surface}}>
+          <div style={{display:'flex',gap:'8px',marginBottom:'10px'}}>
+            <div style={{fontSize:'11px',color:T.text3,letterSpacing:'0.1em',textTransform:'uppercase',fontWeight:600,alignSelf:'center',marginRight:'4px'}}>From:</div>
+            {[{v:'A',l:labelA,c:T.accent},{v:'B',l:labelB,c:T.rose}].map(x=>(
+              <button key={x.v} onClick={()=>setFrom(x.v)} style={{...GB({flex:1,textAlign:'center',padding:'7px 10px'}),background:from===x.v?`${x.c}18`:T.surface2,border:`1px solid ${from===x.v?`${x.c}55`:T.border}`,color:from===x.v?x.c:T.text3,fontWeight:from===x.v?700:400}}>{x.l}</button>
+            ))}
+          </div>
+          <div style={{display:'flex',gap:'8px'}}>
+            <textarea value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submit();}}} placeholder="Write a little note..." rows={2} style={IS({flex:1,resize:'none',fontSize:'14px',width:'auto'})}/>
+            <button onClick={submit} disabled={!text.trim()} style={PB({padding:'10px 16px',borderRadius:'10px',alignSelf:'stretch',opacity:text.trim()?1:0.4,background:from==='B'?T.rose:T.accent})}>&#8593;</button>
+          </div>
+          <div style={{fontSize:'11px',color:T.text4,marginTop:'6px'}}>Enter to send · Shift+Enter for new line</div>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
+// ─── LoveNoteSplash ───────────────────────────────────────────────────────────
+function LoveNoteSplash({notes,labelA,labelB,onClose}) {
+  const latest=notes.length>0?notes[notes.length-1]:null;
+  if(!latest)return null;
+  const fromName=latest.from==='A'?labelA:labelB,fromColor=latest.from==='A'?T.accent:T.rose;
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:'24px',backdropFilter:'blur(6px)'}} onClick={onClose}>
+      <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'24px',padding:'40px 36px',width:'100%',maxWidth:'400px',textAlign:'center',boxShadow:'0 32px 80px rgba(0,0,0,0.2)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:'32px',color:T.rose,marginBottom:'16px'}}>❧</div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'13px',letterSpacing:'0.25em',color:T.text4,textTransform:'uppercase',marginBottom:'6px'}}>A note from</div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',fontWeight:600,color:fromColor,marginBottom:'24px'}}>{fromName}</div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',fontStyle:'italic',color:T.text1,lineHeight:1.6,marginBottom:'8px',padding:'0 8px'}}>"{latest.text}"</div>
+        <div style={{fontSize:'11px',color:T.text4,marginBottom:'28px'}}>{dateLabel(latest.date)}</div>
+        <button onClick={onClose} style={PB({padding:'11px 36px',borderRadius:'40px',background:fromColor})}>Open Ophelia</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── GiftModal ────────────────────────────────────────────────────────────────
+function GiftModal({partnerName,onClose}) {
+  const [tab,setTab]=useState('flowers');
+  const [selected,setSelected]=useState(null);
+  const [address,setAddress]=useState('');
+  const [date,setDate]=useState('');
+  const [note,setNote]=useState('');
+  const [sent,setSent]=useState(false);
+  const affiliatePkgs=LS.get('ophelia_affiliate_packages',[]);
+  const allItems=[...GIFT_ITEMS,...affiliatePkgs];
+  const item=allItems.find(g=>g.id===selected);
+  const items=tab==='affiliate'?affiliatePkgs:GIFT_ITEMS.filter(g=>g.cat===tab);
+
+  if(sent){
+    return(
+      <Overlay onClose={onClose}><Card style={{maxWidth:'380px',textAlign:'center'}}>
+        <div style={{fontSize:'36px',color:T.rose,marginBottom:'14px'}}>❧</div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'24px',color:T.text1,marginBottom:'8px',fontWeight:600}}>On its way to {partnerName}</div>
+        <div style={{fontSize:'13px',color:T.text2,marginBottom:'12px'}}>Your {item?.name.toLowerCase()} is scheduled for {date}.</div>
+        <div style={{fontSize:'13px',color:T.text3,fontStyle:'italic',marginBottom:'24px',padding:'12px',background:T.surface,borderRadius:'10px'}}>"{note||'Thinking of you.'}"</div>
+        <button onClick={onClose} style={PB({padding:'11px 32px',borderRadius:'40px'})}>Done</button>
+      </Card></Overlay>
+    );
+  }
+
+  return(
+    <Overlay onClose={onClose}><Card style={{maxWidth:'480px',maxHeight:'84vh',overflowY:'auto'}}>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600}}>Send a Gift</div>
+        <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'18px'}}>&#10005;</button>
+      </div>
+      <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>Delivered directly to {partnerName}'s door.</div>
+
+      <div style={{display:'flex',gap:'6px',marginBottom:'18px',flexWrap:'wrap'}}>
+        {[{id:'flowers',label:'❧ Flowers'},{id:'package',label:'◈ Care Packages'},{id:'affiliate',label:'&#9671; Partner Gifts'}].map(t=>(
+          <button key={t.id} onClick={()=>{setTab(t.id);setSelected(null);}} style={{...GB({flex:1,textAlign:'center',padding:'9px 10px',minWidth:'90px'}),background:tab===t.id?`${T.rose}15`:T.surface2,border:`1px solid ${tab===t.id?`${T.rose}60`:T.border}`,color:tab===t.id?T.rose:T.text3,fontWeight:tab===t.id?700:400}} dangerouslySetInnerHTML={{__html:t.label}}/>
+        ))}
+      </div>
+
+      {tab==='affiliate'&&affiliatePkgs.length===0&&(
+        <div style={{textAlign:'center',padding:'40px 20px',background:T.surface,border:`1px dashed ${T.border2}`,borderRadius:'14px',marginBottom:'18px'}}>
+          <div style={{fontSize:'24px',color:T.border2,marginBottom:'10px'}}>&#9671;</div>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'18px',color:T.text3,marginBottom:'6px'}}>Partner gifts coming soon</div>
+          <div style={{fontSize:'12px',color:T.text4,lineHeight:1.6}}>We're joining affiliate programs for curated flowers and gifts worldwide. They'll appear here once confirmed.</div>
+        </div>
+      )}
+
+      {items.length>0&&(
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'18px'}}>
+          {items.map(g=>(
+            <div key={g.id} onClick={()=>setSelected(g.id)} className="lift" style={{background:selected===g.id?`${T.rose}10`:'#fff',border:`1px solid ${selected===g.id?`${T.rose}50`:T.border}`,borderRadius:'12px',padding:'14px 12px',cursor:'pointer'}}>
+              <div style={{fontSize:'20px',color:T.rose,marginBottom:'6px'}}>{g.icon}</div>
+              <div style={{fontSize:'13px',color:T.text1,fontWeight:600,marginBottom:'3px'}}>{g.name}</div>
+              <div style={{fontSize:'11px',color:T.text3,marginBottom:'7px',lineHeight:1.4}}>{g.desc}</div>
+              <div style={{fontSize:'14px',color:selected===g.id?T.rose:T.text2,fontWeight:700}}>${g.price}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {selected&&(
+        <div style={{display:'flex',flexDirection:'column',gap:'11px',borderTop:`1px solid ${T.border}`,paddingTop:'18px'}}>
+          <div><Label>Delivery Address</Label><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Enter address..." style={IS()}/></div>
+          <div><Label>Deliver On</Label><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={IS()}/></div>
+          <div><Label>Personal Note</Label><textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Write them a note..." rows={2} style={IS({resize:'none'})}/></div>
+          <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'10px',padding:'12px 14px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontSize:'13px',color:T.text2,fontWeight:500}}>Total</span>
+              <span style={{fontSize:'16px',color:T.accent,fontWeight:700}}>${item?.price} + delivery</span>
+            </div>
+            <div style={{fontSize:'11px',color:T.text4,marginTop:'3px'}}>Processed securely via Stripe.</div>
+          </div>
+          <button onClick={()=>{if(address&&date)setSent(true);}} style={PB({padding:'12px',textAlign:'center',borderRadius:'12px',opacity:address&&date?1:0.45,background:T.rose})}>
+            Send {item?.name} to {partnerName} &#8594;
+          </button>
+        </div>
+      )}
+    </Card></Overlay>
+  );
+}
+
+// ─── ShareModal ───────────────────────────────────────────────────────────────
+function ShareModal({tzA,tzB,labelA,labelB,events,onClose}) {
+  const url=`${window.location.origin}${window.location.pathname}?cal=${encodeShare({tzA,tzB,labelA,labelB,events})}`;
+  const [copied,setCopied]=useState(false);
+  async function copy(){try{await navigator.clipboard.writeText(url);setCopied(true);setTimeout(()=>setCopied(false),2500);}catch{}}
+  return(
+    <Overlay onClose={onClose}><Card style={{maxWidth:'430px'}}>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600}}>Share with {labelB}</div>
+        <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'18px'}}>&#10005;</button>
+      </div>
+      <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>This link carries all your events, timezones, and names.</div>
+      <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'12px 14px',marginBottom:'18px'}}>
+        <div style={{fontSize:'11px',color:T.text4,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:'5px',fontWeight:600}}>Link</div>
+        <div style={{fontSize:'12px',color:T.sky,wordBreak:'break-all',lineHeight:1.5}}>{url.length>90?`${url.slice(0,70)}...`:url}</div>
+      </div>
+      <div style={{display:'flex',gap:'8px'}}>
+        <button onClick={onClose} style={GB()}>Close</button>
+        <button onClick={copy} style={PB({flex:1,textAlign:'center',background:copied?T.sage:T.sky})}>{copied?'Copied &#10003;':'Copy Link'}</button>
+      </div>
+    </Card></Overlay>
+  );
+}
+
+// ─── AdminPanel ───────────────────────────────────────────────────────────────
+function AdminPanel({onClose}) {
+  const [authed,setAuthed]=useState(false);
+  const [pass,setPass]=useState('');
+  const [passErr,setPassErr]=useState(false);
+  const [tab,setTab]=useState('overview');
+  const [affPkgs,setAffPkgs]=useState(()=>LS.get('ophelia_affiliate_packages',[]));
+  const [newPkg,setNewPkg]=useState({name:'',affiliateId:'',price:'',desc:'',affiliateUrl:'',commission:'',icon:'❧'});
+  const users=LS.get('ophelia_users',[]);
+
+  function login(){if(pass===ADMIN_PASSCODE){setAuthed(true);setPassErr(false);}else setPassErr(true);}
+
+  function savePkg(){
+    if(!newPkg.name||!newPkg.price)return;
+    const pkg={...newPkg,id:`aff_${Date.now()}`,cat:'affiliate',price:Number(newPkg.price)};
+    const updated=[...affPkgs,pkg];
+    setAffPkgs(updated);LS.set('ophelia_affiliate_packages',updated);
+    setNewPkg({name:'',affiliateId:'',price:'',desc:'',affiliateUrl:'',commission:'',icon:'❧'});
+  }
+  function removePkg(id){const u=affPkgs.filter(p=>p.id!==id);setAffPkgs(u);LS.set('ophelia_affiliate_packages',u);}
+
+  if(!authed){
+    return(
+      <div style={{position:'fixed',inset:0,background:'rgba(10,20,40,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:500,backdropFilter:'blur(6px)'}} onClick={onClose}>
+        <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'36px',width:'100%',maxWidth:'360px',textAlign:'center',boxShadow:'0 32px 80px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontSize:'11px',letterSpacing:'0.3em',color:T.admin,textTransform:'uppercase',fontWeight:700,marginBottom:'8px'}}>Admin Access</div>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'26px',color:T.text1,fontWeight:600,marginBottom:'24px'}}>Ophelia Admin</div>
+          <input type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()} placeholder="Admin passcode..." style={IS({marginBottom:'12px',textAlign:'center'})}/>
+          {passErr&&<div style={{fontSize:'12px',color:T.danger,marginBottom:'10px'}}>Incorrect passcode</div>}
+          <button onClick={login} style={PB({width:'100%',padding:'12px',textAlign:'center',background:T.admin})}>Enter</button>
+          <button onClick={onClose} style={{...GB({width:'100%',textAlign:'center',marginTop:'8px'})}}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  const TABS=[{id:'overview',label:'Overview'},{id:'users',label:'Users'},{id:'affiliate',label:'Affiliate Pkgs'},{id:'gifts',label:'Gift Catalog'},{id:'payments',label:'Payments'}];
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(10,20,40,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:500,backdropFilter:'blur(4px)',padding:'16px'}} onClick={onClose}>
+      <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',width:'100%',maxWidth:'740px',maxHeight:'90vh',display:'flex',flexDirection:'column',boxShadow:'0 32px 80px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'20px 24px 16px',borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+            <div style={{width:'8px',height:'8px',borderRadius:'50%',background:T.sage}}/>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',fontWeight:600,color:T.text1}}>Admin Panel</div>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'18px'}}>&#10005;</button>
+        </div>
+        <div style={{display:'flex',gap:'2px',padding:'12px 24px 0',borderBottom:`1px solid ${T.border}`,flexShrink:0,flexWrap:'wrap'}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'8px 14px',border:'none',borderRadius:'8px 8px 0 0',cursor:'pointer',background:tab===t.id?'#fff':'transparent',color:tab===t.id?T.admin:T.text3,fontWeight:tab===t.id?700:400,fontSize:'12px',fontFamily:"'DM Sans',sans-serif",borderBottom:tab===t.id?`2px solid ${T.admin}`:'2px solid transparent'}}>{t.label}</button>
+          ))}
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:'24px'}}>
+
+          {tab==='overview'&&(
+            <div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'24px'}}>
+                {[{label:'Users',value:users.length},{label:'Affiliate Items',value:affPkgs.length},{label:'Build',value:'✓ OK'}].map(s=>(
+                  <div key={s.label} style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'14px',padding:'18px',textAlign:'center'}}>
+                    <div style={{fontSize:'26px',color:T.admin,fontWeight:700,fontFamily:"'Cormorant Garamond',serif"}}>{s.value}</div>
+                    <div style={{fontSize:'12px',color:T.text2,fontWeight:600,marginTop:'2px'}}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'14px',padding:'18px'}}>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'17px',fontWeight:600,color:T.text1,marginBottom:'12px'}}>Setup Checklist</div>
+                {['Add Stripe Publishable Key + Price IDs in App.js','Set up Firebase (auth, Firestore) for user accounts','Add Google Maps API key for real-time traffic','Configure Google OAuth Client ID and Apple Team ID','Join affiliate programs — add items via Affiliate Pkgs tab','Set up SendGrid / AWS SES for email notifications','Deploy to Vercel (recommended) — connect custom domain'].map((t,i)=>(
+                  <div key={i} style={{display:'flex',gap:'10px',fontSize:'13px',color:T.text2,marginBottom:'8px',lineHeight:1.5}}>
+                    <span style={{color:T.border2,flexShrink:0}}>&#9671;</span><span>{t}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab==='users'&&(
+            <div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',fontWeight:600,color:T.text1,marginBottom:'16px'}}>Users ({users.length})</div>
+              {users.length===0?<div style={{textAlign:'center',padding:'40px 20px',background:T.surface,border:`1px dashed ${T.border2}`,borderRadius:'14px',color:T.text4}}>No users yet</div>:(
+                <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                  {users.map(u=>(
+                    <div key={u.id} style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',padding:'14px 16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <div>
+                        <div style={{fontWeight:600,color:T.text1}}>{u.name}</div>
+                        <div style={{fontSize:'12px',color:T.text3,marginTop:'2px'}}>{u.email||'—'} · via {u.authMethod}</div>
+                      </div>
+                      <div style={{fontSize:'11px',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'20px',padding:'3px 10px',color:T.text3}}>{u.plan||'free'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab==='affiliate'&&(
+            <div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',fontWeight:600,color:T.text1,marginBottom:'4px'}}>Affiliate Packages</div>
+              <div style={{fontSize:'13px',color:T.text3,marginBottom:'18px'}}>Add partner gifts here once affiliate programs are joined. They appear in the Gift modal under "Partner Gifts".</div>
+              <div style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'14px',padding:'18px',marginBottom:'20px'}}>
+                <div style={{fontSize:'13px',fontWeight:600,color:T.text1,marginBottom:'14px'}}>Add Package</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
+                  <div><Label>Name</Label><input value={newPkg.name} onChange={e=>setNewPkg(p=>({...p,name:e.target.value}))} placeholder="e.g. Classic Roses" style={IS()}/></div>
+                  <div><Label>Affiliate ID</Label><input value={newPkg.affiliateId} onChange={e=>setNewPkg(p=>({...p,affiliateId:e.target.value}))} placeholder="e.g. 1800flowers" style={IS()}/></div>
+                  <div><Label>Price ($)</Label><input type="number" value={newPkg.price} onChange={e=>setNewPkg(p=>({...p,price:e.target.value}))} placeholder="59" style={IS()}/></div>
+                  <div><Label>Commission</Label><input value={newPkg.commission} onChange={e=>setNewPkg(p=>({...p,commission:e.target.value}))} placeholder="8%" style={IS()}/></div>
+                </div>
+                <div style={{marginBottom:'10px'}}><Label>Description</Label><input value={newPkg.desc} onChange={e=>setNewPkg(p=>({...p,desc:e.target.value}))} placeholder="Short description..." style={IS()}/></div>
+                <div style={{marginBottom:'12px'}}><Label>Affiliate URL</Label><input value={newPkg.affiliateUrl} onChange={e=>setNewPkg(p=>({...p,affiliateUrl:e.target.value}))} placeholder="https://..." style={IS()}/></div>
+                <button onClick={savePkg} style={PB({padding:'10px 20px',background:T.admin})}>Add Package</button>
+              </div>
+              {affPkgs.length===0?<div style={{textAlign:'center',padding:'32px',background:T.surface,border:`1px dashed ${T.border2}`,borderRadius:'14px',color:T.text4,fontSize:'13px'}}>No affiliate packages yet</div>:(
+                <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                  {affPkgs.map(p=>(
+                    <div key={p.id} style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',padding:'14px 16px',display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                      <div>
+                        <div style={{fontWeight:600,color:T.text1}}>{p.name}</div>
+                        <div style={{fontSize:'12px',color:T.text3,marginTop:'2px'}}>{p.desc}</div>
+                        <div style={{display:'flex',gap:'12px',marginTop:'6px'}}>
+                          <span style={{fontSize:'11px',color:T.accent,fontWeight:700}}>${p.price}</span>
+                          <span style={{fontSize:'11px',color:T.text4}}>via {p.affiliateId}</span>
+                          {p.commission&&<span style={{fontSize:'11px',color:T.sage}}>&#9670; {p.commission}</span>}
+                        </div>
+                      </div>
+                      <button onClick={()=>removePkg(p.id)} style={{...DB,padding:'6px 12px',fontSize:'12px',flexShrink:0}}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab==='gifts'&&(
+            <div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',fontWeight:600,color:T.text1,marginBottom:'4px'}}>Gift Catalog</div>
+              <div style={{fontSize:'13px',color:T.text3,marginBottom:'18px'}}>Built-in items. Edit GIFT_ITEMS in App.js to add or change.</div>
+              {GIFT_ITEMS.map(g=>(
+                <div key={g.id} style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',padding:'12px 16px',display:'flex',gap:'12px',alignItems:'center',marginBottom:'8px'}}>
+                  <span style={{fontSize:'18px',color:T.rose}}>{g.icon}</span>
+                  <div style={{flex:1}}><div style={{fontWeight:600,color:T.text1,fontSize:'13px'}}>{g.name}</div><div style={{fontSize:'11px',color:T.text3}}>{g.desc}</div></div>
+                  <div style={{fontSize:'14px',color:T.accent,fontWeight:700}}>${g.price}</div>
+                  <div style={{fontSize:'11px',color:T.text4,background:T.surface,border:`1px solid ${T.border}`,borderRadius:'20px',padding:'3px 10px'}}>{g.cat}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab==='payments'&&(
+            <div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',fontWeight:600,color:T.text1,marginBottom:'4px'}}>Payment Setup</div>
+              <div style={{fontSize:'13px',color:T.text3,marginBottom:'18px'}}>Stripe configuration — fill in App.js before going live.</div>
+              {PLANS.filter(p=>p.priceNum>0).map(plan=>(
+                <div key={plan.id} style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'14px',padding:'16px 18px',marginBottom:'12px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'10px'}}>
+                    <div>
+                      <div style={{fontWeight:700,color:T.text1,fontSize:'14px'}}>{plan.label}</div>
+                      <div style={{fontSize:'13px',color:T.accent,fontWeight:600,marginTop:'2px'}}>{plan.price}</div>
+                    </div>
+                    <div style={{fontSize:'11px',background:`${T.accent}15`,color:T.accent,border:`1px solid ${T.accent}30`,borderRadius:'20px',padding:'3px 10px',fontWeight:600}}>{plan.id.toUpperCase()}</div>
+                  </div>
+                  <Label>Stripe Price ID</Label>
+                  <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'8px',padding:'9px 12px',fontSize:'12px',color:plan.stripePriceId?.includes('HERE')?T.danger:T.sky,fontFamily:'monospace'}}>{plan.stripePriceId}</div>
+                  {plan.stripePriceId?.includes('HERE')&&<div style={{fontSize:'11px',color:T.danger,marginTop:'4px'}}>&#9670; Replace this in App.js → PLANS array</div>}
+                </div>
+              ))}
+              <div style={{background:`${T.admin}0a`,border:`1px solid ${T.admin}25`,borderRadius:'14px',padding:'16px 18px'}}>
+                <div style={{fontSize:'13px',fontWeight:600,color:T.admin,marginBottom:'8px'}}>Integration Steps</div>
+                {['Set STRIPE_PUBLIC_KEY in App.js','Install @stripe/stripe-js and @stripe/react-stripe-js','Create a backend endpoint to initiate Stripe Checkout or subscriptions','Configure Stripe webhook → update user subscription in database','Test with Stripe test keys first (pk_test_..., price_test_...)'].map((t,i)=>(
+                  <div key={i} style={{fontSize:'12px',color:T.text2,marginBottom:'5px',display:'flex',gap:'8px'}}><span style={{color:T.border2}}>&#9671;</span><span>{t}</span></div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function Onboarding({ onComplete }) {
-  const [step, setStep] = useState(0);
-  const [plan, setPlan] = useState('plus');
-  const [types, setTypes] = useState([]);
-  const [name, setName] = useState('');
-  const [partnerName, setPartnerName] = useState('');
-  const [tzA, setTzA] = useState('America/New_York');
-  const [tzB, setTzB] = useState('Australia/Sydney');
-  const [homeLocation, setHomeLocation] = useState('');
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+function Onboarding({onComplete}) {
+  const [step,setStep]=useState(0);
+  const [plan,setPlan]=useState('plus');
+  const [types,setTypes]=useState([]);
+  const [name,setName]=useState('');
+  const [partnerName,setPartnerName]=useState('');
+  const [tzA,setTzA]=useState('America/New_York');
+  const [tzB,setTzB]=useState('Australia/Melbourne');
+  const [homeLocation,setHomeLocation]=useState('');
+  const toggle=id=>setTypes(c=>c.includes(id)?c.filter(i=>i!==id):[...c,id]);
+  const progress=[0,25,50,75,100][step];
 
-  const toggle = id => setTypes(c => c.includes(id) ? c.filter(i => i !== id) : [...c, id]);
-  const progress = [0, 25, 50, 75, 100][step];
+  return(
+    <div style={{minHeight:'100vh',zoom:'120%',background:T.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px',fontFamily:"'DM Sans',sans-serif"}}>
+      {step>0&&<div style={{position:'fixed',top:0,left:0,right:0,height:'3px',background:T.border,zIndex:10}}><div style={{height:'100%',width:`${progress}%`,background:T.accent,transition:'width 0.4s ease'}}/></div>}
+      <div style={{maxWidth:'520px',width:'100%'}}>
 
-  return (
-    <div style={{ minHeight: '100vh', zoom: '120%', background: T.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'DM Sans', sans-serif" }}>
-      {step > 0 && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '3px', background: T.border, zIndex: 10 }}>
-          <div style={{ height: '100%', width: `${progress}%`, background: T.accent, transition: 'width 0.4s ease' }} />
-        </div>
-      )}
-
-      <div style={{ maxWidth: '520px', width: '100%' }}>
-        {step === 0 && (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '13px', letterSpacing: '0.35em', color: T.text4, textTransform: 'uppercase', marginBottom: '10px' }}>Welcome to</div>
-            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'clamp(56px,12vw,80px)', fontWeight: 300, color: T.text1, lineHeight: 0.9, letterSpacing: '-0.02em', marginBottom: '8px' }}>Ophelia</h1>
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '17px', color: T.text3, fontStyle: 'italic', marginBottom: '40px' }}>your everyday calendar</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '36px', textAlign: 'left' }}>
-              {[['◇', 'Made for people across time zones'], ['⊕', 'Real-time traffic alerts to leave on time'], ['❧', 'Send gifts, notes, and share calendars']].map(([icon, text]) => (
-                <div key={text} style={{ display: 'flex', gap: '14px', alignItems: 'center', background: '#fff', border: `1px solid ${T.border}`, borderRadius: '12px', padding: '14px 16px', boxShadow: '0 1px 6px rgba(0,0,0,0.05)' }}>
-                  <span style={{ color: T.accent, fontSize: '18px', width: '22px', textAlign: 'center', flexShrink: 0 }}>{icon}</span>
-                  <span style={{ fontSize: '14px', color: T.text2, fontWeight: 500 }}>{text}</span>
+        {step===0&&(
+          <div style={{textAlign:'center'}}>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'13px',letterSpacing:'0.35em',color:T.text4,textTransform:'uppercase',marginBottom:'10px'}}>Welcome to</div>
+            <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(56px,12vw,80px)',fontWeight:300,color:T.text1,lineHeight:0.9,letterSpacing:'-0.02em',marginBottom:'8px'}}>Ophelia</h1>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'17px',color:T.text3,fontStyle:'italic',marginBottom:'40px'}}>your everyday calendar</div>
+            <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'36px',textAlign:'left'}}>
+              {[['◇','Made for people who live across time zones'],['⊕','Real-time traffic alerts — know when to leave'],['❧','Send flowers, gifts, and love notes between cities']].map(([icon,text])=>(
+                <div key={text} style={{display:'flex',gap:'14px',alignItems:'center',background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',padding:'14px 16px'}}>
+                  <span style={{color:T.accent,fontSize:'18px',width:'22px',textAlign:'center',flexShrink:0}}>{icon}</span>
+                  <span style={{fontSize:'14px',color:T.text2,fontWeight:500}}>{text}</span>
                 </div>
               ))}
             </div>
-            <button onClick={() => setStep(1)} style={PB({ padding: '14px 52px', fontSize: '15px', borderRadius: '40px', letterSpacing: '0.08em' })}>Get Started</button>
+            <button onClick={()=>setStep(1)} style={PB({padding:'14px 52px',fontSize:'15px',borderRadius:'40px',letterSpacing:'0.08em'})}>Get Started</button>
+            <div style={{fontSize:'12px',color:T.text4,marginTop:'12px'}}>1 month free &mdash; then $3.99 / month</div>
           </div>
         )}
 
-        {step === 1 && (
+        {step===1&&(
           <div>
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '30px', fontWeight: 400, color: T.text1, marginBottom: '6px' }}>Choose your plan</div>
-            <div style={{ fontSize: '14px', color: T.text3, marginBottom: '26px' }}>Start free for 30 days. Cancel anytime.</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '28px' }}>
-              {PLANS.map(item => (
-                <div key={item.id} onClick={() => setPlan(item.id)} className="lift" style={{ background: plan === item.id ? `${T.accent}0e` : '#fff', border: `1.5px solid ${plan === item.id ? T.accent : T.border}`, borderRadius: '14px', padding: '18px 20px', cursor: 'pointer', boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
-                  {item.badge && <div style={{ position: 'absolute', top: '-11px', left: '16px', background: T.accent, color: '#fff', fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', letterSpacing: '0.06em' }}>{item.badge}</div>}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontSize: '15px', color: T.text1, fontWeight: 700, marginBottom: '3px' }}>{item.label}</div>
-                      <div style={{ fontSize: '12px', color: T.text3 }}>{item.sub}</div>
-                    </div>
-                    <div style={{ fontSize: '14px', color: plan === item.id ? T.accent : T.text3, fontWeight: 700, flexShrink: 0, marginLeft: '12px' }}>{item.price}</div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'30px',fontWeight:400,color:T.text1,marginBottom:'6px'}}>Choose your plan</div>
+            <div style={{fontSize:'14px',color:T.text3,marginBottom:'26px'}}>Start free for 30 days. Cancel anytime.</div>
+            <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'28px'}}>
+              {PLANS.map(item=>(
+                <div key={item.id} onClick={()=>setPlan(item.id)} className="lift" style={{background:plan===item.id?`${T.accent}0e`:'#fff',border:`1.5px solid ${plan===item.id?T.accent:T.border}`,borderRadius:'14px',padding:'18px 20px',cursor:'pointer',position:'relative',boxShadow:'0 2px 10px rgba(0,0,0,0.06)'}}>
+                  {item.badge&&<div style={{position:'absolute',top:'-11px',left:'16px',background:T.accent,color:'#fff',fontSize:'10px',fontWeight:700,padding:'3px 10px',borderRadius:'20px',letterSpacing:'0.06em'}}>{item.badge}</div>}
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                    <div><div style={{fontSize:'15px',color:T.text1,fontWeight:700,marginBottom:'3px'}}>{item.label}</div><div style={{fontSize:'12px',color:T.text3}}>{item.sub}</div></div>
+                    <div style={{fontSize:'14px',color:plan===item.id?T.accent:T.text3,fontWeight:700,flexShrink:0,marginLeft:'12px'}}>{item.price}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setStep(0)} style={GB({ flexShrink: 0 })}>Back</button>
-              <button onClick={() => setStep(2)} style={PB({ flex: 1, textAlign: 'center' })}>Continue</button>
+            <div style={{display:'flex',gap:'10px'}}>
+              <button onClick={()=>setStep(0)} style={GB({flexShrink:0})}>Back</button>
+              <button onClick={()=>setStep(2)} style={PB({flex:1,textAlign:'center'})}>Continue</button>
             </div>
           </div>
         )}
 
-        {step === 2 && (
+        {step===2&&(
           <div>
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '30px', fontWeight: 400, color: T.text1, marginBottom: '6px' }}>How do you use time?</div>
-            <div style={{ fontSize: '14px', color: T.text3, marginBottom: '22px' }}>Select all that apply.</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '26px' }}>
-              {USER_TYPES.map(userType => {
-                const selected = types.includes(userType.id);
-                return (
-                  <div key={userType.id} onClick={() => toggle(userType.id)} className="lift" style={{ background: selected ? `${userType.accent}0e` : '#fff', border: `1.5px solid ${selected ? userType.accent : T.border}`, borderRadius: '14px', padding: '18px 20px', cursor: 'pointer', boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
-                    <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                      <div style={{ fontSize: '20px', color: userType.accent, width: '26px', textAlign: 'center', flexShrink: 0, marginTop: '1px' }}>{userType.icon}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '15px', color: T.text1, fontWeight: 700, marginBottom: '3px' }}>{userType.title}</div>
-                        <div style={{ fontSize: '13px', color: T.text3, marginBottom: '10px' }}>{userType.desc}</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                          {userType.features.map(f => <span key={f} style={{ fontSize: '11px', background: `${userType.accent}14`, border: `1px solid ${userType.accent}30`, color: userType.accent, padding: '3px 9px', borderRadius: '20px', fontWeight: 600 }}>{f}</span>)}
-                        </div>
-                      </div>
-                      <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${selected ? userType.accent : T.border}`, background: selected ? userType.accent : 'transparent', flexShrink: 0, marginTop: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {selected && <span style={{ fontSize: '11px', color: '#fff', fontWeight: 700 }}>&#10003;</span>}
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'30px',fontWeight:400,color:T.text1,marginBottom:'6px'}}>How do you use your time?</div>
+            <div style={{fontSize:'14px',color:T.text3,marginBottom:'22px'}}>Select all that apply.</div>
+            <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'26px'}}>
+              {USER_TYPES.map(ut=>{const sel=types.includes(ut.id);return(
+                <div key={ut.id} onClick={()=>toggle(ut.id)} className="lift" style={{background:sel?`${ut.accent}0e`:'#fff',border:`1.5px solid ${sel?ut.accent:T.border}`,borderRadius:'14px',padding:'18px 20px',cursor:'pointer',boxShadow:'0 2px 10px rgba(0,0,0,0.06)'}}>
+                  <div style={{display:'flex',gap:'14px',alignItems:'flex-start'}}>
+                    <div style={{fontSize:'20px',color:ut.accent,width:'26px',textAlign:'center',flexShrink:0,marginTop:'1px'}}>{ut.icon}</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:'15px',color:T.text1,fontWeight:700,marginBottom:'3px'}}>{ut.title}</div>
+                      <div style={{fontSize:'13px',color:T.text3,marginBottom:'10px'}}>{ut.desc}</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
+                        {ut.features.map(f=><span key={f} style={{fontSize:'11px',background:`${ut.accent}14`,border:`1px solid ${ut.accent}30`,color:ut.accent,padding:'3px 9px',borderRadius:'20px',fontWeight:600}}>{f}</span>)}
                       </div>
                     </div>
+                    <div style={{width:'20px',height:'20px',borderRadius:'50%',border:`2px solid ${sel?ut.accent:T.border}`,background:sel?ut.accent:'transparent',flexShrink:0,marginTop:'1px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      {sel&&<span style={{fontSize:'11px',color:'#fff',fontWeight:700}}>&#10003;</span>}
+                    </div>
+                  </div>
+                </div>
+              );})}
+            </div>
+            <div style={{display:'flex',gap:'10px'}}>
+              <button onClick={()=>setStep(1)} style={GB({flexShrink:0})}>Back</button>
+              <button onClick={()=>setStep(3)} disabled={types.length===0} style={PB({flex:1,textAlign:'center',opacity:types.length===0?0.4:1})}>Continue</button>
+            </div>
+          </div>
+        )}
+
+        {step===3&&(
+          <div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'30px',fontWeight:400,color:T.text1,marginBottom:'6px'}}>Set up your profile</div>
+            <div style={{fontSize:'14px',color:T.text3,marginBottom:'22px'}}>Just the basics to get started.</div>
+            <div style={{display:'flex',flexDirection:'column',gap:'14px',marginBottom:'26px'}}>
+              <div><Label>Your Name</Label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name..." style={IS()}/></div>
+              <div><Label>Your Timezone</Label><TzSelect value={tzA} onChange={e=>setTzA(e.target.value)}/></div>
+              <div>
+                <Label>Home Location (for traffic alerts)</Label>
+                <input value={homeLocation} onChange={e=>setHomeLocation(e.target.value)} placeholder="e.g. 123 Main St, New York, NY" style={IS()}/>
+                <div style={{fontSize:'11px',color:T.text4,marginTop:'5px'}}>Used to calculate drive time to events. Never shared.</div>
+              </div>
+              {(types.includes('couple')||types.includes('traveler'))&&(
+                <>
+                  <div style={{borderTop:`1px solid ${T.border}`,paddingTop:'14px'}}>
+                    <Label color={T.rose}>{types.includes('couple')?"Partner's Name":'Primary Contact'}</Label>
+                    <input value={partnerName} onChange={e=>setPartnerName(e.target.value)} placeholder="Their name..." style={IS()}/>
+                  </div>
+                  <div><Label color={T.rose}>Their Timezone</Label><TzSelect value={tzB} onChange={e=>setTzB(e.target.value)}/></div>
+                </>
+              )}
+            </div>
+            <div style={{display:'flex',gap:'10px'}}>
+              <button onClick={()=>setStep(2)} style={GB({flexShrink:0})}>Back</button>
+              <button onClick={()=>name&&onComplete({plan,types,name,partnerName,tzA,tzB,homeLocation,user:{id:Date.now(),email:'',name,plan,authMethod:'onboarding'}})} disabled={!name} style={PB({flex:1,textAlign:'center',opacity:!name?0.4:1})}>Open Ophelia &#8594;</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Calendar ─────────────────────────────────────────────────────────────────
+function Calendar({config,onReset}) {
+  const {types,name,partnerName,tzA:initA,tzB:initB,homeLocation}=config;
+  const today=new Date();
+  const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const hasPartner=types.includes('couple'), isTraveler=types.includes('traveler'), isLocal=types.includes('local')&&!hasPartner&&!isTraveler;
+
+  const [tzA,setTzA]=useState(initA||'America/New_York');
+  const [tzB,setTzB]=useState(initB||'Australia/Melbourne');
+  const [labelA,setLabelA]=useState(name||'You');
+  const [labelB,setLabelB]=useState(partnerName||'Them');
+  const [events,setEvents]=useState(()=>LS.get('ophelia_events',[]));
+  const [notes,setNotes]=useState(()=>LS.get('ophelia_notes',[]));
+  const [viewMonth,setViewMonth]=useState(today.getMonth());
+  const [viewYear,setViewYear]=useState(today.getFullYear());
+  const [selectedDay,setSelectedDay]=useState(null);
+  const [modal,setModal]=useState(null);
+  const [panel,setPanel]=useState(null);
+  const [travelMode,setTravelMode]=useState(false);
+  const [travelTz,setTravelTz]=useState('America/New_York');
+  const [showGift,setShowGift]=useState(false);
+  const [showNotes,setShowNotes]=useState(false);
+  const [showSplash,setShowSplash]=useState(hasPartner&&notes.length>0);
+  const [showAdmin,setShowAdmin]=useState(false);
+
+  useEffect(()=>{LS.set('ophelia_events',events);},[events]);
+  useEffect(()=>{LS.set('ophelia_notes',notes);},[notes]);
+
+  const activeTzA=travelMode?travelTz:tzA;
+  const accentB=hasPartner?T.rose:isTraveler?T.sky:T.sage;
+  const firstDay=new Date(viewYear,viewMonth,1).getDay();
+  const daysInMonth=new Date(viewYear,viewMonth+1,0).getDate();
+  const cells=Array(firstDay).fill(null).concat(Array.from({length:daysInMonth},(_,i)=>i+1));
+  while(cells.length%7!==0)cells.push(null);
+
+  const eventsForDay=day=>{
+    if(!day)return[];
+    const ds=`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    return events.filter(e=>e.date===ds);
+  };
+  const upcoming=[...events].filter(e=>e.date>=todayStr).sort((a,b)=>`${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).slice(0,5);
+
+  const prevMonth=()=>{setSelectedDay(null);if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else setViewMonth(m=>m-1);};
+  const nextMonth=()=>{setSelectedDay(null);if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else setViewMonth(m=>m+1);};
+
+  return(
+    <>
+      <div style={{minHeight:'100vh',background:T.bg,fontFamily:"'DM Sans',sans-serif",color:T.text1}}>
+        <div style={{maxWidth:'840px',margin:'0 auto',padding:'28px 18px 80px'}}>
+
+          {/* Header */}
+          <div style={{textAlign:'center',marginBottom:'28px'}}>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'11px',letterSpacing:'0.4em',color:T.text4,textTransform:'uppercase',marginBottom:'6px'}}>Ophelia</div>
+            <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(28px,5vw,42px)',fontWeight:300,color:T.text1,lineHeight:1.05}}>
+              {hasPartner?<>Hello, <em style={{color:T.accent,fontStyle:'italic'}}>{labelA}</em></>:isLocal?<>Good {today.getHours()<12?'morning':today.getHours()<18?'afternoon':'evening'}, <em style={{color:T.accent}}>{labelA}</em></>:<>Welcome back, <em style={{color:T.accent}}>{labelA}</em></>}
+            </h1>
+          </div>
+
+          {/* Dual clocks */}
+          {!isLocal&&(
+            <>
+              <div style={{display:'flex',gap:'10px',marginBottom:'8px'}}>
+                <Clock tz={activeTzA} accent={T.accent} label={`${labelA} · ${TIMEZONES.find(t=>t.value===activeTzA)?.label||activeTzA}`} tag={travelMode?'traveling':undefined}/>
+                <div style={{display:'flex',alignItems:'center',flexShrink:0,color:T.border2,fontSize:'20px'}}>&#8596;</div>
+                <Clock tz={tzB} accent={accentB} label={`${labelB} · ${TIMEZONES.find(t=>t.value===tzB)?.label||tzB}`}/>
+              </div>
+              <div style={{textAlign:'center',fontSize:'12px',color:T.text4,marginBottom:'22px'}}>&#9670; {tzDiff(tzA,tzB,labelB)}</div>
+            </>
+          )}
+          {isLocal&&<div style={{marginBottom:'22px'}}><Clock tz={tzA} accent={T.sage} label={`${labelA} · ${TIMEZONES.find(t=>t.value===tzA)?.label||tzA}`}/></div>}
+
+          {/* Action pills */}
+          <div style={{display:'flex',gap:'7px',justifyContent:'center',flexWrap:'wrap',marginBottom:'22px'}}>
+            <button style={SB(panel==='settings')} onClick={()=>setPanel(p=>p==='settings'?null:'settings')}>&#9965;&ensp;Settings</button>
+            {(isTraveler||hasPartner)&&<button style={SB(travelMode,T.sage)} onClick={()=>setTravelMode(v=>!v)}>&#8853;&ensp;Travel Mode</button>}
+            {(hasPartner||isTraveler)&&<button style={SB(panel==='meeting',T.lavender)} onClick={()=>setPanel(p=>p==='meeting'?null:'meeting')}>&#9737;&ensp;Best Times</button>}
+            {(hasPartner||isTraveler)&&<button style={SB(panel==='share',T.sky)} onClick={()=>setPanel(p=>p==='share'?null:'share')}>&#8618;&ensp;Share</button>}
+            {hasPartner&&<button style={SB(showGift,T.rose)} onClick={()=>setShowGift(true)}>❧&ensp;Send a Gift</button>}
+            {hasPartner&&<button style={SB(showNotes,T.lavender)} onClick={()=>setShowNotes(true)}>&#9825;&ensp;Love Notes{notes.length>0&&<span style={{background:T.lavender,color:'#fff',borderRadius:'20px',padding:'1px 6px',fontSize:'10px',fontWeight:700,marginLeft:'4px'}}>{notes.length}</span>}</button>}
+          </div>
+
+          {/* Settings panel */}
+          {panel==='settings'&&(
+            <div style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'16px',padding:'20px 22px',marginBottom:'20px',boxShadow:'0 2px 12px rgba(0,0,0,0.06)'}}>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'18px',color:T.text1,fontWeight:600,marginBottom:'16px'}}>Settings</div>
+              <div style={{display:'grid',gridTemplateColumns:isLocal?'1fr':'1fr 1fr',gap:'14px'}}>
+                {[{label:'Your Name',value:labelA,set:setLabelA,tz:tzA,setTz:setTzA,color:T.accent},...(!isLocal?[{label:hasPartner?'Partner':'Contact',value:labelB,set:setLabelB,tz:tzB,setTz:setTzB,color:accentB}]:[])].map((item,i)=>(
+                  <div key={i}>
+                    <Label color={item.color}>{item.label}</Label>
+                    <input value={item.value} onChange={e=>item.set(e.target.value)} style={IS({marginBottom:'8px'})}/>
+                    <TzSelect value={item.tz} onChange={e=>item.setTz(e.target.value)}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Travel mode */}
+          {travelMode&&(
+            <div style={{background:'#f0faf2',border:`1px solid ${T.sage}40`,borderRadius:'14px',padding:'14px 18px',marginBottom:'20px'}}>
+              <Label color={T.sage}>&#8853; Where are you right now?</Label>
+              <TzSelect value={travelTz} onChange={e=>setTravelTz(e.target.value)}/>
+              <div style={{fontSize:'12px',color:T.sage,marginTop:'8px'}}>Your clock updates to your travel city. Events still save in your home timezone.</div>
+            </div>
+          )}
+
+          {/* Calendar grid */}
+          <div style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'20px',overflow:'hidden',marginBottom:'22px',boxShadow:'0 2px 16px rgba(0,0,0,0.07)'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px 14px',borderBottom:`1px solid ${T.border}`}}>
+              <button onClick={prevMonth} style={{background:'none',border:'none',color:T.text3,fontSize:'22px',cursor:'pointer',padding:'2px 8px',lineHeight:1}}>&#8249;</button>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600,letterSpacing:'0.02em'}}>{MONTHS[viewMonth]}&ensp;<span style={{color:T.text4,fontWeight:300}}>{viewYear}</span></div>
+              <button onClick={nextMonth} style={{background:'none',border:'none',color:T.text3,fontSize:'22px',cursor:'pointer',padding:'2px 8px',lineHeight:1}}>&#8250;</button>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',padding:'10px 12px 2px'}}>
+              {DAYS.map(d=><div key={d} style={{textAlign:'center',fontSize:'11px',letterSpacing:'0.1em',color:T.text4,textTransform:'uppercase',fontWeight:600}}>{d}</div>)}
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'2px',padding:'4px 10px 14px'}}>
+              {cells.map((day,idx)=>{
+                const dayEvents=eventsForDay(day);
+                const ds=day?`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`:'' ;
+                const isToday=ds===todayStr, isSel=selectedDay===day;
+                return(
+                  <div key={idx} className="day-cell" onClick={()=>day&&setSelectedDay(day===selectedDay?null:day)} style={{minHeight:'54px',padding:'5px 4px',borderRadius:'9px',cursor:day?'pointer':'default',background:isSel?`${T.accent}18`:isToday?`${T.accent}0e`:'transparent',border:isToday?`1.5px solid ${T.accent}50`:'1.5px solid transparent',transition:'background 0.12s'}}>
+                    {day&&(
+                      <>
+                        <div style={{fontSize:'13px',color:isToday?T.accent:T.text1,fontWeight:isToday?700:500,textAlign:'center',marginBottom:'3px'}}>{day}</div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:'2px',justifyContent:'center'}}>
+                          {dayEvents.slice(0,3).map(e=><div key={e.id} style={{width:'6px',height:'6px',borderRadius:'50%',background:e.color}}/>)}
+                          {dayEvents.length>3&&<span style={{fontSize:'9px',color:T.text4}}>+{dayEvents.length-3}</span>}
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })}
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setStep(1)} style={GB({ flexShrink: 0 })}>Back</button>
-              <button onClick={() => setStep(3)} disabled={types.length === 0} style={PB({ flex: 1, textAlign: 'center', opacity: types.length === 0 ? 0.4 : 1 })}>Continue</button>
-            </div>
           </div>
-        )}
 
-        {step === 3 && (
-          <div>
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '30px', fontWeight: 400, color: T.text1, marginBottom: '6px' }}>Set up your profile</div>
-            <div style={{ fontSize: '14px', color: T.text3, marginBottom: '22px' }}>Just the basics.</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '26px' }}>
-              <div>
-                <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: T.text3, textTransform: 'uppercase', marginBottom: '7px', fontWeight: 600 }}>Your Name</div>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name..." style={IS()} />
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: T.text3, textTransform: 'uppercase', marginBottom: '7px', fontWeight: 600 }}>Your Timezone</div>
-                <TzSelect value={tzA} onChange={e => setTzA(e.target.value)} />
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: T.text3, textTransform: 'uppercase', marginBottom: '7px', fontWeight: 600 }}>Home Location (for traffic)</div>
-                <input value={homeLocation} onChange={e => setHomeLocation(e.target.value)} placeholder="e.g., 123 Main St, NY, NY" style={IS()} />
-              </div>
-              {(types.includes('couple') || types.includes('traveler')) && (
-                <>
-                  <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: '14px' }}>
-                    <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: T.rose, textTransform: 'uppercase', marginBottom: '7px', fontWeight: 600 }}>{types.includes('couple') ? "Partner's Name" : 'Contact'}</div>
-                    <input value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="Their name..." style={IS()} />
+          {/* Day detail */}
+          {selectedDay&&(()=>{
+            const dayEvents=eventsForDay(selectedDay);
+            const ds=`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`;
+            return(
+              <div style={{marginBottom:'22px'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',color:T.text1,fontWeight:600}}>{MONTHS[viewMonth]} {selectedDay}</div>
+                  <button onClick={()=>setModal({date:ds})} style={PB({padding:'8px 16px',fontSize:'12px'})}>&#43;&ensp;Add Event</button>
+                </div>
+                {dayEvents.length===0?(
+                  <div style={{fontSize:'13px',color:T.text4,padding:'16px',textAlign:'center',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px'}}>Nothing planned yet &#9671;</div>
+                ):(
+                  <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                    {dayEvents.map(e=><EventCard key={e.id} ev={e} tzA={activeTzA} tzB={isLocal?null:tzB} labelA={labelA} labelB={labelB} onClick={()=>setModal(e)}/>)}
                   </div>
-                  <div>
-                    <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: T.rose, textTransform: 'uppercase', marginBottom: '7px', fontWeight: 600 }}>Their Timezone</div>
-                    <TzSelect value={tzB} onChange={e => setTzB(e.target.value)} />
-                  </div>
-                </>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setStep(2)} style={GB({ flexShrink: 0 })}>Back</button>
-              <button onClick={() => onComplete({ plan, types, name, partnerName, tzA, tzB, homeLocation, user: { id: Date.now(), email: '', name, authMethod: 'onboarding' } })} disabled={!name} style={PB({ flex: 1, textAlign: 'center', opacity: !name ? 0.4 : 1 })}>Open Ophelia &#8594;</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Calendar({ config }) {
-  const { types, name, partnerName, tzA: initA, tzB: initB, homeLocation } = config;
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-
-  const hasPartner = types.includes('couple');
-  const isTraveler = types.includes('traveler');
-  const isLocal = types.includes('local') && !hasPartner && !isTraveler;
-
-  const [tzA, setTzA] = useState(initA || 'America/New_York');
-  const [tzB, setTzB] = useState(initB || 'Australia/Sydney');
-  const [labelA, setLabelA] = useState(name || 'You');
-  const [labelB, setLabelB] = useState(partnerName || 'Them');
-  const [events, setEvents] = useState(() => LS.get('ophelia_events', []));
-  const [notes, setNotes] = useState(() => LS.get('ophelia_notes', []));
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [modal, setModal] = useState(null);
-  const [travelMode, setTravelMode] = useState(false);
-  const [travelTz, setTravelTz] = useState('America/New_York');
-  const [showGift, setShowGift] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
-
-  useEffect(() => { LS.set('ophelia_events', events); }, [events]);
-  useEffect(() => { LS.set('ophelia_notes', notes); }, [notes]);
-
-  const activeTzA = travelMode ? travelTz : tzA;
-  const accentB = hasPartner ? T.rose : isTraveler ? T.sky : T.sage;
-
-  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const cells = Array(firstDay).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  const eventsForDay = day => {
-    if (!day) return [];
-    const ds = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    return events.filter(e => e.date === ds);
-  };
-
-  const upcoming = [...events].filter(e => e.date >= todayStr).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).slice(0, 5);
-
-  return (
-    <>
-      <div style={{ minHeight: '100vh', background: T.bg, fontFamily: "'DM Sans', sans-serif", color: T.text1 }}>
-        <div style={{ maxWidth: '840px', margin: '0 auto', padding: '28px 18px 80px' }}>
-          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '11px', letterSpacing: '0.4em', color: T.text4, textTransform: 'uppercase', marginBottom: '6px' }}>Ophelia</div>
-            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'clamp(28px,5vw,42px)', fontWeight: 300, color: T.text1, lineHeight: 1.05 }}>
-              {hasPartner ? <>Hello, <em style={{ color: T.accent, fontStyle: 'italic' }}>{labelA}</em></> : <>Welcome back, <em style={{ color: T.accent }}>{labelA}</em></>}
-            </h1>
-          </div>
-
-          {!isLocal && (
-            <>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                <Clock tz={activeTzA} accent={T.accent} label={`${labelA} · ${TIMEZONES.find(t => t.value === activeTzA)?.label || activeTzA}`} tag={travelMode ? 'traveling' : undefined} />
-                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, color: T.border2, fontSize: '20px' }}>&#8596;</div>
-                <Clock tz={tzB} accent={accentB} label={`${labelB} · ${TIMEZONES.find(t => t.value === tzB)?.label || tzB}`} />
+                )}
               </div>
-              <div style={{ textAlign: 'center', fontSize: '12px', color: T.text4, marginBottom: '22px' }}>&#9670; {tzDiff(tzA, tzB, labelB)}</div>
-            </>
+            );
+          })()}
+
+          {/* Upcoming */}
+          {upcoming.length>0&&(
+            <div style={{marginBottom:'28px'}}>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',color:T.text1,fontWeight:600,marginBottom:'12px'}}>
+                Coming up&ensp;<span style={{fontStyle:'italic',color:T.text3,fontWeight:300}}>{hasPartner?'for both of you':'for you'}</span>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                {upcoming.map(e=><EventCard key={e.id} ev={e} tzA={activeTzA} tzB={isLocal?null:tzB} labelA={labelA} labelB={labelB} onClick={()=>setModal(e)}/>)}
+              </div>
+            </div>
           )}
 
-          {isLocal && <div style={{ marginBottom: '22px' }}><Clock tz={tzA} accent={T.sage} label={`${labelA} · ${TIMEZONES.find(t => t.value === tzA)?.label || tzA}`} /></div>}
+          {/* Latest note teaser */}
+          {hasPartner&&notes.length>0&&(
+            <div onClick={()=>setShowNotes(true)} style={{background:'#fff',border:`1px solid ${T.lavender}30`,borderLeft:`4px solid ${T.lavender}`,borderRadius:'14px',padding:'16px 20px',marginBottom:'24px',cursor:'pointer',boxShadow:'0 2px 10px rgba(0,0,0,0.05)'}}>
+              <div style={{fontSize:'11px',letterSpacing:'0.15em',color:T.lavender,textTransform:'uppercase',fontWeight:700,marginBottom:'8px'}}>&#9825; Latest Note</div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'17px',fontStyle:'italic',color:T.text1,lineHeight:1.55,marginBottom:'6px'}}>"{notes[notes.length-1].text}"</div>
+              <div style={{fontSize:'11px',color:T.text4}}>from {notes[notes.length-1].from==='A'?labelA:labelB} · {dateLabel(notes[notes.length-1].date)} · <span style={{color:T.lavender}}>See all {notes.length} &#8594;</span></div>
+            </div>
+          )}
 
-          {/* Calendar grid and rest of calendar component... */}
-          {/* Truncated for space — full calendar UI same as before */}
-
-          <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-            <button onClick={() => setShowAdmin(!showAdmin)} style={{ background: T.admin, color: 'white', border: 'none', padding: '10px 14px', borderRadius: '999px', fontSize: '12px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-              ⚙ Admin
-            </button>
-          </div>
+          {/* New event CTA */}
+          {!selectedDay&&<div style={{textAlign:'center',marginTop:'12px'}}><button onClick={()=>setModal({})} style={PB({padding:'13px 40px',fontSize:'15px',borderRadius:'40px',letterSpacing:'0.06em',boxShadow:'0 6px 24px rgba(181,99,30,0.3)'})}>&#43;&ensp;New Event</button></div>}
         </div>
       </div>
 
-      {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
+      {/* Modals */}
+      {modal!==null&&<EventModal event={modal} tzA={tzA} tzB={isLocal?null:tzB} labelA={labelA} labelB={labelB} homeLocation={homeLocation} onClose={()=>setModal(null)} onSave={ev=>{setEvents(prev=>{const ex=prev.find(i=>i.id===ev.id);return ex?prev.map(i=>i.id===ev.id?ev:i):[...prev,ev];});setModal(null);}} onDelete={id=>{setEvents(prev=>prev.filter(e=>e.id!==id));setModal(null);}}/>}
+      {panel==='meeting'&&<MeetingFinder tzA={activeTzA} tzB={tzB} labelA={labelA} labelB={labelB} onClose={()=>setPanel(null)}/>}
+      {panel==='share'&&<ShareModal tzA={tzA} tzB={tzB} labelA={labelA} labelB={labelB} events={events} onClose={()=>setPanel(null)}/>}
+      {showGift&&<GiftModal partnerName={labelB} onClose={()=>setShowGift(false)}/>}
+      {showNotes&&<NotesWall notes={notes} labelA={labelA} labelB={labelB} onClose={()=>setShowNotes(false)} onAdd={note=>setNotes(prev=>[...prev,note])} onDelete={id=>setNotes(prev=>prev.filter(n=>n.id!==id))}/>}
+      {showSplash&&<LoveNoteSplash notes={notes} labelA={labelA} labelB={labelB} onClose={()=>setShowSplash(false)}/>}
+      {showAdmin&&<AdminPanel onClose={()=>setShowAdmin(false)}/>}
+
+      {/* Fixed buttons */}
+      <div style={{position:'fixed',bottom:'20px',right:'20px',zIndex:9999,display:'flex',flexDirection:'column',gap:'8px',alignItems:'flex-end'}}>
+        <button onClick={()=>setShowAdmin(true)} style={{background:T.admin,color:'#fff',border:'none',padding:'9px 14px',borderRadius:'999px',fontSize:'12px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Admin</button>
+        <button onClick={onReset} style={{background:T.surface2,color:T.text3,border:`1px solid ${T.border}`,padding:'8px 14px',borderRadius:'999px',fontSize:'12px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>&#8635; Reset</button>
+        {config?.plan==='free'&&<button onClick={()=>window.open('https://kadenrohatensky.gumroad.com/l/wonfe','_blank')} style={{background:T.accent,color:'#fff',border:'none',padding:'13px 20px',borderRadius:'999px',fontSize:'14px',fontWeight:700,cursor:'pointer',boxShadow:'0 8px 24px rgba(0,0,0,0.2)',fontFamily:"'DM Sans',sans-serif"}}>Upgrade to Plus</button>}
+      </div>
     </>
   );
 }
 
-// ─── Root ────────────────────────────────────────────────────────────────────
+// ─── Root ─────────────────────────────────────────────────────────────────────
 export default function Ophelia() {
-  const [config, setConfig] = useState(() => LS.get('ophelia_config', null));
-  const [showAuth, setShowAuth] = useState(!config);
+  const [screen, setScreen] = useState(()=>{
+    const cfg=LS.get('ophelia_config',null);
+    if(!cfg) return 'auth';
+    return 'calendar';
+  });
+  const [config,setConfig]=useState(()=>LS.get('ophelia_config',null));
 
-  // Register service worker for PWA
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
-    }
-  }, []);
+  useEffect(()=>{
+    // Handle shared calendar URL
+    const cal=new URLSearchParams(window.location.search).get('cal');
+    if(cal){const d=decodeShare(cal);if(d){const cfg={types:['couple'],name:d.labelA||'You',partnerName:d.labelB||'Them',tzA:d.tzA,tzB:d.tzB,homeLocation:'',plan:'plus',user:{id:Date.now(),name:d.labelA||'You',authMethod:'share'}};LS.set('ophelia_config',cfg);setConfig(cfg);setScreen('calendar');}}
+    // Admin shortcut
+    if(new URLSearchParams(window.location.search).get('admin')==='1') setScreen('calendar');
+    // PWA service worker
+    if('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
+  },[]);
 
-  function handleAuthComplete(user) {
-    const cfg = { types: ['couple'], name: user.name, partnerName: '', tzA: 'America/New_York', tzB: 'Australia/Sydney', homeLocation: '', user };
-    LS.set('ophelia_config', cfg);
-    LS.set('ophelia_users', (LS.get('ophelia_users', [])).concat([user]));
-    setConfig(cfg);
-    setShowAuth(false);
+  function handleAuth(user) {
+    // New user after auth → go through onboarding
+    setScreen('onboarding');
+    LS.set('ophelia_auth_user',user);
+    const existing=LS.get('ophelia_users',[]);
+    if(!existing.find(u=>u.id===user.id)) LS.set('ophelia_users',[...existing,user]);
   }
 
-  function handleOnboardingComplete(cfg) {
-    LS.set('ophelia_config', cfg);
-    LS.set('ophelia_users', (LS.get('ophelia_users', [])).concat([cfg.user]));
-    setConfig(cfg);
-    setShowAuth(false);
+  function handleOnboarding(cfg) {
+    const authUser=LS.get('ophelia_auth_user',null);
+    const finalCfg={...cfg,user:{...(authUser||cfg.user),plan:cfg.plan}};
+    LS.set('ophelia_config',finalCfg);
+    setConfig(finalCfg);
+    setScreen('calendar');
   }
 
-  return (
+  function handleReset() {
+    LS.del('ophelia_config');LS.del('ophelia_events');LS.del('ophelia_notes');LS.del('ophelia_auth_user');
+    setConfig(null);setScreen('auth');
+  }
+
+  return(
     <>
       <style>{CSS}</style>
-      {showAuth ? <AuthModal onLogin={handleAuthComplete} /> : config ? <Calendar config={config} /> : <Onboarding onComplete={handleOnboardingComplete} />}
+      {screen==='auth'     && <AuthScreen onComplete={handleAuth}/>}
+      {screen==='onboarding'&&<Onboarding onComplete={handleOnboarding}/>}
+      {screen==='calendar' && config && <Calendar config={config} onReset={handleReset}/>}
     </>
   );
 }
