@@ -699,14 +699,15 @@ function EventCard({ev,tzA,tzB,labelA,labelB,onClick}) {
       <div style={{flex:1,minWidth:0}}>
         <div style={{fontSize:'14px',color:T.text1,fontWeight:600,marginBottom:'4px'}}>{ev.title}</div>
         <div style={{display:'flex',gap:'12px',flexWrap:'wrap',fontSize:'12px'}}>
-          <span><span style={{color:T.text4}}>{labelA} </span><span style={{color:T.accent,fontWeight:600}}>{tA}</span></span>
+          <span><span style={{color:T.text4}}>{labelA} </span><span style={{color:T.accent,fontWeight:600}}>{tA}{ev.endTime?` – ${ev.endTime.replace(/^0/,'').replace(':00','').replace(':30',' 30').replace(/(\d+):(\d+)/,(_,h,m)=>{const H=parseInt(h);return `${H>12?H-12:H||12}:${m} ${H>=12?'PM':'AM'}`})}`:''}</span></span>
           {tB&&<><span style={{color:T.border2}}>&#9670;</span><span><span style={{color:T.text4}}>{labelB} </span><span style={{color:T.lavender,fontWeight:600}}>{tB}</span></span></>}
         </div>
+        {ev.endDate&&ev.endDate!==ev.date&&<div style={{fontSize:'11px',color:T.sage,marginTop:'3px',fontWeight:600}}>&#9632; {dateLabel(ev.date)} – {dateLabel(ev.endDate)}</div>}
         {ev.location&&<div style={{fontSize:'11px',color:T.sky,marginTop:'3px'}}>&#9671; {ev.location}</div>}
         {ev.recurrence&&ev.recurrence!=='none'&&<div style={{fontSize:'10px',color:T.sage,marginTop:'3px',fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase'}}>{RECURRENCE_LABELS[ev.recurrence]||ev.recurrence}</div>}
         {ev.note&&<div style={{fontSize:'11px',color:T.text3,marginTop:'3px',fontStyle:'italic'}}>{ev.note}</div>}
       </div>
-      <div style={{fontSize:'11px',color:T.text4,whiteSpace:'nowrap',paddingTop:'2px'}}>{dateLabel(ev.date)}</div>
+      <div style={{fontSize:'11px',color:T.text4,whiteSpace:'nowrap',paddingTop:'2px'}}>{ev.endDate&&ev.endDate!==ev.date?`${dateLabel(ev.date)}–${dateLabel(ev.endDate)}`:dateLabel(ev.date)}</div>
     </div>
   );
 }
@@ -745,7 +746,10 @@ function TrafficAlert({event,homeLocation}) {
 function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,onClose,onSave,onDelete}) {
   const [title,     setTitle]     = useState(event?.title      || '');
   const [date,      setDate]      = useState(event?.date       || '');
+  const [endDate,   setEndDate]   = useState(event?.endDate    || '');
+  const [multiDay,  setMultiDay]  = useState(!!(event?.endDate && event.endDate !== event?.date));
   const [time,      setTime]      = useState(event?.time       || '12:00');
+  const [endTime,   setEndTime]   = useState(event?.endTime    || '');
   const [tz,        setTz]        = useState(event?.tz         || tzA);
   const [recurrence,setRecurrence]= useState(event?.recurrence || 'none');
   const [location,  setLocation]  = useState(event?.location   || '');
@@ -774,6 +778,13 @@ function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,on
           <div style={{display:'flex',gap:'10px'}}>
             <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={IS({flex:1,width:'auto'})} />
             <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={IS({flex:1,width:'auto'})} />
+            <input type="time" value={endTime} onChange={e=>setEndTime(e.target.value)} placeholder="End" style={IS({flex:1,width:'auto',color:endTime?T.text1:T.text4})} />
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+            <button onClick={()=>{setMultiDay(v=>!v);if(multiDay)setEndDate('');}} style={{...GB({padding:'6px 14px',fontSize:'12px'}),background:multiDay?`${T.accent}15`:'transparent',border:`1px solid ${multiDay?T.accent:T.border}`,color:multiDay?T.accent:T.text3}}>
+              {multiDay?'✓ Multi-day':'+ Multi-day'}
+            </button>
+            {multiDay&&<input type="date" value={endDate} min={date} onChange={e=>setEndDate(e.target.value)} style={IS({flex:1,width:'auto'})} />}
           </div>
 
           <div>
@@ -818,7 +829,7 @@ function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,on
           {event?.id&&<button onClick={()=>onDelete(event.id)} style={DB}>Delete</button>}
           <div style={{flex:1}}/>
           <button onClick={onClose} style={GB()}>Cancel</button>
-          <button onClick={()=>{if(!title||!date)return;if(plan==='free'&&!event?.id&&eventCount>=10)return;onSave({id:event?.id||Date.now(),title,date,time,tz,recurrence,location,fromAddr,color,note});}} style={PB({opacity:plan==='free'&&!event?.id&&eventCount>=10?0.4:1})}>Save</button>
+          <button onClick={()=>{if(!title||!date)return;if(plan==='free'&&!event?.id&&eventCount>=10)return;onSave({id:event?.id||Date.now(),title,date,endDate:multiDay&&endDate?endDate:date,time,endTime:endTime||null,tz,recurrence,location,fromAddr,color,note});}} style={PB({opacity:plan==='free'&&!event?.id&&eventCount>=10?0.4:1})}>Save</button>
 
         </div>
       </Card>
@@ -1058,8 +1069,7 @@ function GiftModal({partnerName,onClose}) {
 }
 
 // ─── ShareModal (invite link — recipient must create an account) ──────────────
-function ShareModal({tzA,labelA,onClose,plan}) {
-  // Generate a stable coupleId and save to our config so both sides share the same Firestore collection
+function ShareModal({tzA,labelA,onClose,plan,onConnected}) {
   const coupleId = useState(()=>{
     const cfg=LS.get('ophelia_config',null);
     if(cfg?.coupleId) return cfg.coupleId;
@@ -1070,12 +1080,40 @@ function ShareModal({tzA,labelA,onClose,plan}) {
   const inviteData = encodeShare({type:'invite',fromName:labelA,fromTz:tzA,coupleId,ts:Date.now()});
   const url = `${window.location.origin}${window.location.pathname}?invite=${inviteData}`;
   const [copied,setCopied] = useState(false);
+  const [tab,setTab] = useState('link'); // 'link' | 'code'
+  const [theirCode,setTheirCode] = useState('');
+  const [codeErr,setCodeErr] = useState('');
+  const shortCode = coupleId.slice(-6).toUpperCase();
+
   async function copy(){try{await navigator.clipboard.writeText(url);setCopied(true);setTimeout(()=>setCopied(false),2500);}catch{}}
+
+  function connectByCode(){
+    if(!theirCode.trim()){setCodeErr('Enter your partner\'s code.');return;}
+    const raw=theirCode.trim().toUpperCase();
+    // reconstruct a coupleId from the short code by searching known patterns
+    // We store the short code → full coupleId mapping in localStorage when we generate one
+    const map=LS.get('ophelia_code_map',{});
+    const fullId=map[raw]||Object.keys(map).find(k=>k.endsWith(raw));
+    if(!fullId){setCodeErr('Code not found. Make sure your partner shared their 6-digit code from their Share screen.');return;}
+    const cfg=LS.get('ophelia_config',null);
+    if(cfg){const updated={...cfg,coupleId:fullId};LS.set('ophelia_config',updated);}
+    setCodeErr('');
+    if(onConnected) onConnected(fullId);
+    onClose();
+  }
+
+  // Save our short code → coupleId mapping so partners can find us
+  useState(()=>{
+    const map=LS.get('ophelia_code_map',{});
+    map[shortCode]=coupleId;
+    LS.set('ophelia_code_map',map);
+  });
+
   const canShare = plan==='plus'||plan==='pro';
   return(
     <Overlay onClose={onClose}><Card style={{maxWidth:'430px'}}>
-      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600}}>Share Your Calendar</div>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'16px'}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,fontWeight:600}}>Connect Calendars</div>
         <button onClick={onClose} style={{background:'none',border:'none',color:T.text3,cursor:'pointer',fontSize:'18px'}}>&#10005;</button>
       </div>
       {!canShare?(
@@ -1083,27 +1121,49 @@ function ShareModal({tzA,labelA,onClose,plan}) {
           <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>Calendar sharing is available on Ophelia Plus and Pro.</div>
           <div style={{background:`${T.accent}0e`,border:`1px solid ${T.accent}30`,borderRadius:'12px',padding:'16px',marginBottom:'20px'}}>
             <div style={{fontSize:'13px',fontWeight:700,color:T.accent,marginBottom:'4px'}}>Upgrade to Plus — $2.99/mo</div>
-            <div style={{fontSize:'12px',color:T.text3}}>Share your calendar with 1 person via invite link. They must create a free Ophelia account to connect.</div>
+            <div style={{fontSize:'12px',color:T.text3}}>Share your calendar with 1 person. Works whether or not they already have an account.</div>
           </div>
           <button onClick={onClose} style={GB({width:'100%',textAlign:'center'})}>Close</button>
         </div>
       ):(
         <div>
-          <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>
-            Send this link to your person. They will need to create a free Ophelia account to connect your calendars. Your calendar is private until they accept.
+          {/* Tab switcher */}
+          <div style={{display:'flex',gap:'6px',marginBottom:'18px',background:T.surface,borderRadius:'10px',padding:'4px'}}>
+            {[{id:'link',label:'Invite Link'},{id:'code',label:'Connect by Code'}].map(t=>(
+              <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:'7px',border:'none',borderRadius:'7px',cursor:'pointer',background:tab===t.id?'#fff':'transparent',color:tab===t.id?T.accent:T.text3,fontWeight:tab===t.id?700:400,fontSize:'12px',fontFamily:"'DM Sans',sans-serif",boxShadow:tab===t.id?'0 1px 4px rgba(0,0,0,0.1)':'none'}}>{t.label}</button>
+            ))}
           </div>
-          <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'12px 14px',marginBottom:'18px'}}>
-            <div style={{fontSize:'11px',color:T.text4,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:'5px',fontWeight:600}}>Invite Link</div>
-            <div style={{fontSize:'12px',color:T.sky,wordBreak:'break-all',lineHeight:1.5}}>{url.length>90?`${url.slice(0,70)}...`:url}</div>
-          </div>
-          <div style={{fontSize:'12px',color:T.text4,marginBottom:'16px',padding:'10px 12px',background:T.surface,borderRadius:'10px',lineHeight:1.6}}>
-            &#9671; Recipient must sign up for Ophelia to accept<br/>
-            &#9671; Your calendar stays private until they connect
-          </div>
-          <div style={{display:'flex',gap:'8px'}}>
-            <button onClick={onClose} style={GB()}>Close</button>
-            <button onClick={copy} style={PB({flex:1,textAlign:'center',background:copied?T.sage:T.sky})}>{copied?'Copied ✓':'Copy Invite Link'}</button>
-          </div>
+
+          {tab==='link'&&(
+            <div>
+              <div style={{fontSize:'13px',color:T.text3,marginBottom:'16px'}}>Share this link. Works even if they already have an Ophelia account.</div>
+              <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'12px 14px',marginBottom:'16px'}}>
+                <div style={{fontSize:'11px',color:T.text4,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:'5px',fontWeight:600}}>Invite Link</div>
+                <div style={{fontSize:'12px',color:T.sky,wordBreak:'break-all',lineHeight:1.5}}>{url.length>90?`${url.slice(0,70)}...`:url}</div>
+              </div>
+              <div style={{display:'flex',gap:'8px'}}>
+                <button onClick={onClose} style={GB()}>Close</button>
+                <button onClick={copy} style={PB({flex:1,textAlign:'center',background:copied?T.sage:T.sky})}>{copied?'Copied ✓':'Copy Link'}</button>
+              </div>
+            </div>
+          )}
+
+          {tab==='code'&&(
+            <div>
+              <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'14px',marginBottom:'16px',textAlign:'center'}}>
+                <div style={{fontSize:'11px',color:T.text4,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:'6px',fontWeight:600}}>Your Connect Code</div>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'32px',fontWeight:700,color:T.accent,letterSpacing:'0.2em'}}>{shortCode}</div>
+                <div style={{fontSize:'11px',color:T.text3,marginTop:'4px'}}>Share this with your partner</div>
+              </div>
+              <Label color={T.accent}>Enter your partner's code</Label>
+              <input value={theirCode} onChange={e=>setTheirCode(e.target.value.toUpperCase())} placeholder="e.g. A3X9KL" maxLength={6} style={IS({letterSpacing:'0.2em',textTransform:'uppercase',fontFamily:"'DM Sans',sans-serif",fontSize:'18px',textAlign:'center',marginTop:'6px',marginBottom:'8px'})}/>
+              {codeErr&&<div style={{fontSize:'12px',color:T.danger,marginBottom:'8px'}}>{codeErr}</div>}
+              <div style={{display:'flex',gap:'8px',marginTop:'4px'}}>
+                <button onClick={onClose} style={GB()}>Cancel</button>
+                <button onClick={connectByCode} style={PB({flex:1,textAlign:'center'})}>Connect</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Card></Overlay>
@@ -1112,7 +1172,7 @@ function ShareModal({tzA,labelA,onClose,plan}) {
 
 // ─── InviteScreen — shown when someone lands on ?invite= link ─────────────────
 function InviteScreen({inviteData,onAccept}) {
-  const [mode,  setMode]  = useState('signup');
+  const [mode,  setMode]  = useState(()=>LS.get('ophelia_config',null)?'signin':'signup');
   const [email, setEmail] = useState('');
   const [pass,  setPass]  = useState('');
   const [name,  setName]  = useState('');
@@ -1121,12 +1181,22 @@ function InviteScreen({inviteData,onAccept}) {
 
   function handleSubmit(e){
     e.preventDefault();
-    if(!email||!pass||!name){setErr('Please fill in all fields.');return;}
     setErr('');
-    const user={id:Date.now(),email,name,authMethod:'email',plan:'free'};
     const stored=LS.get('ophelia_users',[]);
-    if(!stored.find(u=>u.email===email)) LS.set('ophelia_users',[...stored,user]);
-    onAccept(user,inviteData);
+    if(mode==='signin'){
+      const found=stored.find(u=>u.email===email);
+      if(!found){setErr('No account found with that email.');return;}
+      // merge coupleId into their existing config
+      const existingCfg=LS.get('ophelia_config',null);
+      const cfg={...(existingCfg||{}),coupleId:inviteData?.coupleId||null,partnerName:inviteData?.fromName||'Partner',tzB:inviteData?.fromTz||existingCfg?.tzB||'America/New_York',connectedViaInvite:true};
+      LS.set('ophelia_config',cfg);
+      onAccept(found,inviteData);
+    } else {
+      if(!email||!pass||!name){setErr('Please fill in all fields.');return;}
+      const user={id:Date.now(),email,name,authMethod:'email',plan:'free'};
+      if(!stored.find(u=>u.email===email)) LS.set('ophelia_users',[...stored,user]);
+      onAccept(user,inviteData);
+    }
   }
 
   return(
@@ -1137,15 +1207,20 @@ function InviteScreen({inviteData,onAccept}) {
           <div style={{background:`${T.accent}0e`,border:`1px solid ${T.accent}30`,borderRadius:'14px',padding:'16px 20px',marginBottom:'8px'}}>
             <div style={{fontSize:'13px',color:T.text3,marginBottom:'4px'}}>You have been invited by</div>
             <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.accent,fontWeight:600}}>{from}</div>
-            <div style={{fontSize:'12px',color:T.text3,marginTop:'6px'}}>Create a free account to connect your calendars.</div>
+            <div style={{fontSize:'12px',color:T.text3,marginTop:'6px'}}>{mode==='signin'?'Sign in to connect your calendars.':'Create a free account to connect your calendars.'}</div>
           </div>
         </div>
+        <div style={{display:'flex',gap:'6px',marginBottom:'18px',background:T.surface,borderRadius:'10px',padding:'4px'}}>
+          {[{id:'signup',label:'New Account'},{id:'signin',label:'Already have account'}].map(t=>(
+            <button key={t.id} onClick={()=>setMode(t.id)} style={{flex:1,padding:'7px',border:'none',borderRadius:'7px',cursor:'pointer',background:mode===t.id?'#fff':'transparent',color:mode===t.id?T.accent:T.text3,fontWeight:mode===t.id?700:400,fontSize:'12px',fontFamily:"'DM Sans',sans-serif",boxShadow:mode===t.id?'0 1px 4px rgba(0,0,0,0.1)':'none'}}>{t.label}</button>
+          ))}
+        </div>
         <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-          <input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)} style={IS()}/>
+          {mode==='signup'&&<input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)} style={IS()}/>}
           <input type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} style={IS()}/>
-          <input type="password" placeholder="Create a password (8+ characters)" value={pass} onChange={e=>setPass(e.target.value)} style={IS()}/>
+          <input type="password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)} style={IS()}/>
           {err&&<div style={{fontSize:'12px',color:T.danger,background:'#fdf0f0',border:'1px solid #e0b0b0',borderRadius:'8px',padding:'8px 12px'}}>{err}</div>}
-          <button type="submit" style={PB({width:'100%',padding:'13px',textAlign:'center',borderRadius:'12px'})}>Create Account & Connect &#8594;</button>
+          <button type="submit" style={PB({width:'100%',padding:'13px',textAlign:'center',borderRadius:'12px'})}>{mode==='signin'?'Sign In & Connect ':'Create Account & Connect '} &#8594;</button>
         </form>
         <div style={{textAlign:'center',marginTop:'20px',fontSize:'12px',color:T.text4,lineHeight:1.6}}>
           Your calendar is private. Only {from} can see your shared events after you connect.
@@ -2287,7 +2362,7 @@ function Calendar({config,onReset}) {
         }}
       />}
       {panel==='meeting'&&<MeetingFinder tzA={activeTzA} tzB={tzB} labelA={labelA} labelB={labelB} onClose={()=>setPanel(null)}/>}
-      {panel==='share'&&<ShareModal tzA={tzA} labelA={labelA} plan={config?.plan||'free'} onClose={()=>setPanel(null)}/>}
+      {panel==='share'&&<ShareModal tzA={tzA} labelA={labelA} plan={config?.plan||'free'} onClose={()=>setPanel(null)} onConnected={newCoupleId=>{const cfg={...config,coupleId:newCoupleId};LS.set('ophelia_config',cfg);window.location.reload();}}/>}
       {showGift&&<GiftModal partnerName={labelB} onClose={()=>setShowGift(false)}/>}
       {showNotes&&<NotesWall notes={notes} labelA={labelA} labelB={labelB} onClose={()=>setShowNotes(false)} onAdd={note=>setNotes(prev=>[...prev,note])} onDelete={id=>setNotes(prev=>prev.filter(n=>n.id!==id))}/>}
       {showSplash&&<LoveNoteSplash notes={notes} labelA={labelA} labelB={labelB} onClose={()=>setShowSplash(false)}/>}
