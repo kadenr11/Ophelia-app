@@ -25,12 +25,12 @@ import {
 // Get this from: Firebase Console → Project Settings → Your apps → Web app
 // Also enable Firestore in your Firebase Console (Build → Firestore Database)
 const firebaseConfig = {
-  apiKey:            "PASTE_YOUR_API_KEY",
-  authDomain:        "PASTE_YOUR_AUTH_DOMAIN",
-  projectId:         "PASTE_YOUR_PROJECT_ID",
-  storageBucket:     "PASTE_YOUR_STORAGE_BUCKET",
-  messagingSenderId: "PASTE_YOUR_MESSAGING_SENDER_ID",
-  appId:             "PASTE_YOUR_APP_ID",
+  apiKey:            "AIzaSyDfLK-CyX5kLlq1Jn6zoBh3HUUEwPVzlNY",
+  authDomain:        "ophelia-app-f0c6f.firebaseapp.com",
+  projectId:         "ophelia-app-f0c6f",
+  storageBucket:     "ophelia-app-f0c6f.firebasestorage.app",
+  messagingSenderId: "1003575436551",
+  appId:             "1:1003575436551:web:7f6ffea9c1d62b2a8211a2",
 };
 
 const IS_CONFIGURED = !firebaseConfig.apiKey.includes('PASTE');
