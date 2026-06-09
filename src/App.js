@@ -1575,18 +1575,7 @@ function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEven
           transform:'translateY(-6px)',
         }}>&#43;</button>
 
-        {/* Reset */}
-        <button onClick={onReset} style={{
-          display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',
-          background:'none',border:'none',cursor:'pointer',padding:'6px 14px',borderRadius:'12px',
-          color:T.text3,
-        }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-            <path d="M3 3v5h5"/>
-          </svg>
-          <span style={{fontSize:'10px',fontWeight:600,letterSpacing:'0.04em'}}>Reset</span>
-        </button>
+        {/* no reset button */}
       </div>
     </>
   );
@@ -1851,16 +1840,52 @@ function Calendar({config,onReset}) {
           )}
 
           {/* Upcoming */}
-          {upcoming.length>0&&(
+          {!hasPartner&&upcoming.length>0&&(
             <div style={{marginBottom:'28px'}}>
               <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',color:T.text1,fontWeight:600,marginBottom:'12px'}}>
-                Coming up&ensp;<span style={{fontStyle:'italic',color:T.text3,fontWeight:300}}>{hasPartner?'for both of you':'for you'}</span>
+                Coming up&ensp;<span style={{fontStyle:'italic',color:T.text3,fontWeight:300}}>for you</span>
               </div>
               <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-                {upcoming.map(e=><EventCard key={e.id} ev={e} tzA={activeTzA} tzB={isLocal?null:tzB} labelA={labelA} labelB={labelB} onClick={()=>setModal(e)}/>)}
+                {upcoming.map(e=><EventCard key={e.id} ev={e} tzA={activeTzA} tzB={null} labelA={labelA} labelB={labelB} onClick={()=>setModal(e)}/>)}
               </div>
             </div>
           )}
+
+          {/* Couple: two separate upcoming sections */}
+          {hasPartner&&(()=>{
+            const myEvents   = upcoming.filter(e=>!e.tz||e.tz===tzA||e.tz===activeTzA);
+            const theirEvents= upcoming.filter(e=>e.tz&&e.tz===tzB);
+            const sharedEvents= upcoming.filter(e=>!e.tz||(!myEvents.find(m=>m.id===e.id)&&!theirEvents.find(t=>t.id===e.id)));
+            // Show all events under "my" section, partner's under their name
+            return(
+              <>
+                {upcoming.length>0&&(
+                  <div style={{marginBottom:'24px'}}>
+                    <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',color:T.text1,fontWeight:600,marginBottom:'12px'}}>
+                      Coming up&ensp;<span style={{fontStyle:'italic',color:T.accent,fontWeight:300}}>for {labelA}</span>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                      {upcoming.filter(e=>!e.tz||e.tz===tzA||e.tz===activeTzA||e.tz!==tzB).map(e=>(
+                        <EventCard key={e.id} ev={e} tzA={activeTzA} tzB={tzB} labelA={labelA} labelB={labelB} onClick={()=>setModal(e)}/>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {upcoming.filter(e=>e.tz===tzB).length>0&&(
+                  <div style={{marginBottom:'28px'}}>
+                    <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'20px',color:T.text1,fontWeight:600,marginBottom:'12px'}}>
+                      Coming up&ensp;<span style={{fontStyle:'italic',color:T.rose,fontWeight:300}}>for {labelB}</span>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                      {upcoming.filter(e=>e.tz===tzB).map(e=>(
+                        <EventCard key={e.id} ev={e} tzA={activeTzA} tzB={tzB} labelA={labelA} labelB={labelB} onClick={()=>setModal(e)}/>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* Latest note teaser */}
           {hasPartner&&notes.length>0&&(
