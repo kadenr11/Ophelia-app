@@ -2236,12 +2236,15 @@ class ErrorBoundary extends React.Component {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 function OpheliaApp() {
+  const [config,setConfig]=useState(()=>LS.get('ophelia_config',null));
   const [screen, setScreen] = useState(()=>{
     const cfg=LS.get('ophelia_config',null);
-    if(!cfg) return 'auth';
-    return 'calendar';
+    const authUser=LS.get('ophelia_auth_user',null);
+    // Stay logged in: skip auth if both config and auth user are saved
+    if(cfg&&authUser) return 'calendar';
+    if(cfg) return 'calendar';
+    return 'auth';
   });
-  const [config,setConfig]=useState(()=>LS.get('ophelia_config',null));
   const [inviteData,setInviteData]=useState(null);
 
   useEffect(()=>{
@@ -2259,7 +2262,17 @@ function OpheliaApp() {
     LS.set('ophelia_auth_user',user);
     const existing=LS.get('ophelia_users',[]);
     if(!existing.find(u=>u.id===user.id)) LS.set('ophelia_users',[...existing,user]);
-    setScreen('onboarding');
+    // If this user already has a saved calendar config, skip onboarding and go straight in
+    const savedCfg=LS.get('ophelia_config',null);
+    if(savedCfg) {
+      // Refresh the user object in case plan changed
+      const merged={...savedCfg,user:{...savedCfg.user,...user}};
+      LS.set('ophelia_config',merged);
+      setConfig(merged);
+      setScreen('calendar');
+    } else {
+      setScreen('onboarding');
+    }
   }
 
   function handleInviteAccept(user,inv) {
