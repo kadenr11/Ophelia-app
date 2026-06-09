@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ophelia-v10';
+const CACHE_NAME = 'ophelia-v11';
 const STATIC = ['/', '/manifest.json', '/favicon.svg'];
 
 self.addEventListener('install', event => {
