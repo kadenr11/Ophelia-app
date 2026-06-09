@@ -1731,6 +1731,49 @@ function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEven
   );
 }
 
+// ─── TravelPicker — searchable city/timezone picker ───────────────────────────
+function TravelPicker({value,onChange}) {
+  const [query,setQuery]=useState('');
+  const inputRef=useRef(null);
+  const matches=query.trim().length===0
+    ? TIMEZONES
+    : TIMEZONES.filter(t=>
+        t.label.toLowerCase().includes(query.toLowerCase())||
+        t.value.toLowerCase().includes(query.toLowerCase())
+      );
+  const current=TIMEZONES.find(t=>t.value===value);
+  return(
+    <div style={{background:'#f0faf2',border:`1px solid ${T.sage}40`,borderRadius:'14px',padding:'14px 18px',marginBottom:'20px'}}>
+      <Label color={T.sage}>&#8853; Where are you right now?</Label>
+      <div style={{position:'relative'}}>
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={e=>setQuery(e.target.value)}
+          placeholder={current?current.label:'Search city...'}
+          style={IS({marginBottom:'0',borderColor:`${T.sage}60`})}
+          onClick={e=>e.stopPropagation()}
+        />
+        {query.trim().length>0&&(
+          <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',boxShadow:'0 8px 32px rgba(0,0,0,0.12)',zIndex:9999,marginTop:'4px',maxHeight:'220px',overflowY:'auto'}}>
+            {matches.length===0&&<div style={{padding:'12px 16px',fontSize:'13px',color:T.text4}}>No cities found</div>}
+            {matches.map(t=>(
+              <div key={t.value+t.label} onClick={()=>{onChange(t.value);setQuery('');}} style={{padding:'10px 16px',fontSize:'13px',color:T.text1,cursor:'pointer',borderBottom:`1px solid ${T.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}
+                onMouseOver={e=>e.currentTarget.style.background=T.surface}
+                onMouseOut={e=>e.currentTarget.style.background='#fff'}
+              >
+                <span>{t.label}</span>
+                <span style={{fontSize:'11px',color:T.text4}}>{t.region}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {current&&<div style={{fontSize:'12px',color:T.sage,marginTop:'8px'}}>Currently set to <strong>{current.label}</strong> — your clock updates live. Events still save in your home timezone.</div>}
+    </div>
+  );
+}
+
 // ─── Calendar ─────────────────────────────────────────────────────────────────
 function Calendar({config,onReset}) {
   const rawTypes=config.types;
@@ -1844,11 +1887,7 @@ function Calendar({config,onReset}) {
 
           {/* Travel mode */}
           {travelMode&&(
-            <div style={{background:'#f0faf2',border:`1px solid ${T.sage}40`,borderRadius:'14px',padding:'14px 18px',marginBottom:'20px'}}>
-              <Label color={T.sage}>&#8853; Where are you right now?</Label>
-              <TzSelect value={travelTz} onChange={e=>setTravelTz(e.target.value)}/>
-              <div style={{fontSize:'12px',color:T.sage,marginTop:'8px'}}>Your clock updates to your travel city. Events still save in your home timezone.</div>
-            </div>
+            <TravelPicker value={travelTz} onChange={setTravelTz}/>
           )}
 
           {/* View toggle */}
