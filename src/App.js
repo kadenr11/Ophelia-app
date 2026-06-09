@@ -731,7 +731,7 @@ function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,on
 
   return (
     <Overlay onClose={onClose}>
-      <Card style={{maxWidth:'440px'}}>
+      <Card style={{maxWidth:'440px',paddingBottom:'clamp(24px,6vw,40px)'}}>
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,marginBottom:'20px',fontWeight:600}}>{event?.id?'Edit Event':'New Event'}</div>
         <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
           <input placeholder="Event title..." value={title} onChange={e=>setTitle(e.target.value)} style={IS()} />
@@ -2101,17 +2101,19 @@ function Calendar({config,onReset}) {
       {showSplash&&<LoveNoteSplash notes={notes} labelA={labelA} labelB={labelB} onClose={()=>setShowSplash(false)}/>}
       {showAdmin&&<AdminPanel onClose={()=>setShowAdmin(false)}/>}
 
-      {/* Bottom nav bar */}
-      <BottomNav
-        events={events}
-        tzA={activeTzA} tzB={isLocal?null:tzB}
-        labelA={labelA} labelB={labelB}
-        todayStr={todayStr}
-        onEventClick={ev=>setModal(ev)}
-        onNewEvent={()=>setModal({})}
-        onReset={onReset}
-        plan={config?.plan||'free'}
-      />
+      {/* Bottom nav bar — hidden when any modal is open */}
+      {!modal&&!showGift&&!showNotes&&!showAdmin&&panel!=='share'&&panel!=='meeting'&&(
+        <BottomNav
+          events={events}
+          tzA={activeTzA} tzB={isLocal?null:tzB}
+          labelA={labelA} labelB={labelB}
+          todayStr={todayStr}
+          onEventClick={ev=>setModal(ev)}
+          onNewEvent={()=>setModal({})}
+          onReset={onReset}
+          plan={config?.plan||'free'}
+        />
+      )}
     </>
   );
 }
