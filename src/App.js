@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import {
+  auth, googleProvider, appleProvider, IS_CONFIGURED,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signInWithPopup, updateProfile, onAuthStateChanged,
+} from './firebase';
 
 // ─── API Config (fill in before deploying) ───────────────────────────────────
 // Firebase:  import { initializeApp } from 'firebase/app'; const FIREBASE_CONFIG = { apiKey: '...', projectId: '...' };
@@ -292,53 +297,117 @@ function AuthScreen({onComplete}) {
   const [smsOk,  setSmsOk]  = useState(false);
   const [pushOk, setPushOk] = useState(false);
   const [err,    setErr]    = useState('');
+  const [loading,setLoading]= useState(false);
 
   async function requestPush() {
     if(!('Notification' in window)) return false;
-    const result = await Notification.requestPermission();
-    return result === 'granted';
+    return (await Notification.requestPermission()) === 'granted';
+  }
+
+  function makeLocalUser(fbUser, extra={}) {
+    const betaValid = checkBetaCode(promo);
+    const stored = LS.get('ophelia_users',[]);
+    const existing = stored.find(u=>u.id===fbUser.uid||u.email===fbUser.email);
+    const u = existing || {
+      id: fbUser.uid || Date.now(),
+      email: fbUser.email||'',
+      name: fbUser.displayName||fbUser.email?.split('@')[0]||'User',
+      authMethod: extra.authMethod||'email',
+      phone: phone||'',
+      smsConsent: smsOk,
+      plan: betaValid?'plus': (existing?.plan||'free'),
+      betaCode: betaValid?promo.trim().toUpperCase():null,
+      ...extra,
+    };
+    if(!existing) LS.set('ophelia_users',[...stored, u]);
+    return u;
   }
 
   async function handleEmail(e) {
     e.preventDefault();
     if(!email||!pass) { setErr('Please fill in all fields.'); return; }
-    const key = email.trim().toLowerCase();
-    const stored = LS.get('ophelia_users',[]);
-    const existing = stored.find(u=>u.email.toLowerCase()===key);
+    setErr(''); setLoading(true);
 
-    if(mode==='signin') {
-      if(!existing) { setErr('No account found with that email. Create one below.'); return; }
-      if(existing.passHash && existing.passHash !== hashPass(pass)) { setErr('Incorrect password.'); return; }
-      onComplete(existing);
+    // ── Firebase path ──
+    if(IS_CONFIGURED) {
+      try {
+        let fbUser;
+        if(mode==='signup') {
+          if(!name) { setErr('Please enter your name.'); setLoading(false); return; }
+          if(pass.length<8) { setErr('Password must be at least 8 characters.'); setLoading(false); return; }
+          const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+          await updateProfile(cred.user, { displayName: name });
+          fbUser = cred.user;
+        } else {
+          const cred = await signInWithEmailAndPassword(auth, email.trim(), pass);
+          fbUser = cred.user;
+        }
+        const pushGranted = (mode==='signup'&&pushOk) ? await requestPush() : false;
+        onComplete(makeLocalUser(fbUser, { authMethod:'email', pushEnabled:pushGranted }));
+      } catch(e) {
+        const msgs = {
+          'auth/user-not-found':'No account found with that email.',
+          'auth/wrong-password':'Incorrect password.',
+          'auth/email-already-in-use':'An account with that email already exists. Sign in instead.',
+          'auth/weak-password':'Password must be at least 8 characters.',
+          'auth/invalid-email':'Please enter a valid email address.',
+          'auth/invalid-credential':'Incorrect email or password.',
+        };
+        setErr(msgs[e.code]||e.message);
+        setLoading(false);
+      }
       return;
     }
 
-    // signup
-    if(!name) { setErr('Please enter your name.'); return; }
-    if(pass.length < 8) { setErr('Password must be at least 8 characters.'); return; }
-    if(existing) { setErr('An account with that email already exists. Sign in instead.'); return; }
+    // ── Local fallback (Firebase not yet configured) ──
+    const key = email.trim().toLowerCase();
+    const stored = LS.get('ophelia_users',[]);
+    const existing = stored.find(u=>u.email.toLowerCase()===key);
+    if(mode==='signin') {
+      if(!existing) { setErr('No account found with that email.'); setLoading(false); return; }
+      if(existing.passHash && existing.passHash!==hashPass(pass)) { setErr('Incorrect password.'); setLoading(false); return; }
+      onComplete(existing); return;
+    }
+    if(!name) { setErr('Please enter your name.'); setLoading(false); return; }
+    if(pass.length<8) { setErr('Password must be at least 8 characters.'); setLoading(false); return; }
+    if(existing) { setErr('An account with that email already exists.'); setLoading(false); return; }
     const betaValid = checkBetaCode(promo);
-    setErr('');
-    let pushGranted = false;
-    if(pushOk) pushGranted = await requestPush();
-    const user = {
-      id: Date.now(), email: key, name: name||key.split('@')[0],
-      authMethod:'email', passHash: hashPass(pass),
-      phone: phone||'', smsConsent:smsOk, pushEnabled:pushGranted,
-      plan: betaValid ? 'plus' : 'free',
-      betaCode: betaValid ? promo.trim().toUpperCase() : null,
-    };
-    LS.set('ophelia_users',[...stored, user]);
+    const pushGranted = pushOk ? await requestPush() : false;
+    const user = { id:Date.now(), email:key, name:name||key.split('@')[0], authMethod:'email', passHash:hashPass(pass), phone:phone||'', smsConsent:smsOk, pushEnabled:pushGranted, plan:betaValid?'plus':'free', betaCode:betaValid?promo.trim().toUpperCase():null };
+    LS.set('ophelia_users',[...stored,user]);
     onComplete(user);
   }
 
-  function handleGoogle() {
-    const user = { id:Date.now(), email:'', name:'Google User', authMethod:'google' };
-    onComplete(user);
+  async function handleGoogle() {
+    setErr(''); setLoading(true);
+    if(IS_CONFIGURED) {
+      try {
+        const cred = await signInWithPopup(auth, googleProvider);
+        onComplete(makeLocalUser(cred.user, { authMethod:'google' }));
+      } catch(e) {
+        if(e.code!=='auth/popup-closed-by-user') setErr('Google sign-in failed. Please try again.');
+        setLoading(false);
+      }
+    } else {
+      setErr('Firebase not configured yet. Use email sign-in for now.');
+      setLoading(false);
+    }
   }
-  function handleApple() {
-    const user = { id:Date.now(), email:'', name:'Apple User', authMethod:'apple' };
-    onComplete(user);
+
+  async function handleApple() {
+    setErr(''); setLoading(true);
+    if(IS_CONFIGURED) {
+      try {
+        const cred = await signInWithPopup(auth, appleProvider);
+        onComplete(makeLocalUser(cred.user, { authMethod:'apple' }));
+      } catch(e) {
+        if(e.code!=='auth/popup-closed-by-user') setErr('Apple sign-in failed. Please try again.');
+        setLoading(false);
+      }
+    } else {
+      setErr('Firebase not configured yet. Use email sign-in for now.');
+      setLoading(false);
+    }
   }
 
   return (
@@ -349,12 +418,18 @@ function AuthScreen({onComplete}) {
           <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'16px',color:T.text3,fontStyle:'italic'}}>{mode==='signup'?'Create your account':'your everyday calendar'}</div>
         </div>
 
+        {!IS_CONFIGURED&&(
+          <div style={{background:'#fffbea',border:'1px solid #e8d87a',borderRadius:'10px',padding:'10px 14px',marginBottom:'16px',fontSize:'12px',color:'#7a6a10',lineHeight:1.5}}>
+            Firebase not connected yet — Google &amp; Apple login coming soon. Email sign-in works now.
+          </div>
+        )}
         <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'20px'}}>
-          <button onClick={handleGoogle} style={{...GB({width:'100%',padding:'12px',textAlign:'center',background:'#fff',border:`1px solid ${T.border}`}),display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',fontWeight:500}}>
-            <span style={{fontSize:'14px'}}>&#9673;</span> Continue with Google
+          <button onClick={handleGoogle} disabled={loading} style={{...GB({width:'100%',padding:'12px',textAlign:'center',background:'#fff',border:`1px solid ${T.border}`}),display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',fontWeight:500,opacity:loading?0.6:1}}>
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Continue with Google
           </button>
-          <button onClick={handleApple} style={{...GB({width:'100%',padding:'12px',textAlign:'center',background:'#111',border:'1px solid #111',color:'#fff'}),display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',fontWeight:500}}>
-            <span style={{fontSize:'14px'}}>&#63743;</span> Continue with Apple
+          <button onClick={handleApple} disabled={loading} style={{...GB({width:'100%',padding:'12px',textAlign:'center',background:'#111',border:'1px solid #111',color:'#fff'}),display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',fontWeight:500,opacity:loading?0.6:1}}>
+            <span style={{fontSize:'16px'}}>&#63743;</span> Continue with Apple
           </button>
         </div>
 
@@ -411,8 +486,8 @@ function AuthScreen({onComplete}) {
           )}
 
           {err&&<div style={{fontSize:'12px',color:T.danger,background:'#fdf0f0',border:'1px solid #e0b0b0',borderRadius:'8px',padding:'8px 12px'}}>{err}</div>}
-          <button type="submit" style={PB({width:'100%',padding:'13px',textAlign:'center',borderRadius:'12px'})}>
-            {mode==='signup'?'Create Account':'Sign In'} &#8594;
+          <button type="submit" disabled={loading} style={PB({width:'100%',padding:'13px',textAlign:'center',borderRadius:'12px',opacity:loading?0.6:1})}>
+            {loading?'Please wait...':(mode==='signup'?'Create Account':'Sign In →')}
           </button>
         </form>
 
