@@ -289,6 +289,8 @@ select option{background:#fff;color:#1a1208;}
 .overlay-inner{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;}
 .modal-card{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;max-height:88vh;}
 body.modal-open{overflow:hidden;}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:9000;}
+.page-scroll{padding-bottom:calc(120px + env(safe-area-inset-bottom,20px))!important;}
 
 /* ── Mobile: sheet slides up from bottom ── */
 @media(max-width:600px){
@@ -1798,12 +1800,10 @@ function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEven
       </div>
 
       {/* Fixed bottom bar */}
-      <div style={{
-        position:'fixed',bottom:0,left:0,right:0,
+      <div className="bottom-nav" style={{
         background:T.bg,borderTop:`1px solid ${T.border}`,
         display:'flex',alignItems:'center',justifyContent:'space-around',
         padding:'8px 8px calc(8px + env(safe-area-inset-bottom))',
-        zIndex:9000,
         fontFamily:"'DM Sans',sans-serif",
         boxShadow:'0 -2px 16px rgba(0,0,0,0.08)',
       }}>
@@ -2041,7 +2041,7 @@ function Calendar({config,onReset}) {
   return(
     <>
       <div style={{minHeight:'100vh',background:T.bg,fontFamily:"'DM Sans',sans-serif",color:T.text1}}>
-        <div className="cal-max" style={{maxWidth:'840px',margin:'0 auto',paddingTop:'clamp(16px,4vw,28px)',paddingLeft:'clamp(12px,4vw,18px)',paddingRight:'clamp(12px,4vw,18px)',paddingBottom:'200px'}}>
+        <div className="cal-max page-scroll" style={{maxWidth:'840px',margin:'0 auto',paddingTop:'clamp(16px,4vw,28px)',paddingLeft:'clamp(12px,4vw,18px)',paddingRight:'clamp(12px,4vw,18px)',paddingBottom:'200px'}}>
 
           {/* Header */}
           <div style={{textAlign:'center',marginBottom:'28px'}}>
@@ -2426,7 +2426,19 @@ function OpheliaApp() {
     // Admin shortcut
     if(params.get('admin')==='1') setScreen('calendar');
     // PWA service worker
-    if('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
+    if('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').then(reg=>{
+        reg.update();
+        if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+        reg.addEventListener('updatefound',()=>{
+          const w=reg.installing;
+          if(w) w.addEventListener('statechange',()=>{
+            if(w.state==='installed'&&navigator.serviceWorker.controller) window.location.reload();
+          });
+        });
+      }).catch(()=>{});
+      navigator.serviceWorker.addEventListener('controllerchange',()=>window.location.reload());
+    }
   },[]);
 
   function handleAuth(user) {
