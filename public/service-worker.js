@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ophelia-v5';
+const CACHE_NAME = 'ophelia-v6';
 const STATIC = ['/', '/manifest.json', '/favicon.svg'];
 
 self.addEventListener('install', event => {
@@ -18,22 +18,14 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = event.request.url;
-
-  // Always fetch JS/CSS fresh from network — never serve stale bundles
   if (url.includes('/static/')) {
     event.respondWith(fetch(event.request));
     return;
   }
-
-  // Network-first for HTML
   if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match('/'))
-    );
+    event.respondWith(fetch(event.request).catch(() => caches.match('/')));
     return;
   }
-
-  // Cache-first for other static assets (icons, fonts, manifest)
   event.respondWith(
     caches.match(event.request).then(cached =>
       cached || fetch(event.request).then(res => {
@@ -44,5 +36,66 @@ self.addEventListener('fetch', event => {
         return res;
       })
     ).catch(() => caches.match('/'))
+  );
+});
+
+// ── Scheduled event reminders ──────────────────────────────────────────────
+// App sends { type:'schedule', event, minutesBefore, label } via postMessage
+const timers = new Map();
+
+self.addEventListener('message', event => {
+  const { type, event: ev, minutesBefore, label, eventId } = event.data || {};
+
+  if (type === 'schedule' && ev && ev.date && ev.time) {
+    const eventMs = new Date(`${ev.date}T${ev.time}`).getTime();
+    const notifyMs = eventMs - minutesBefore * 60 * 1000;
+    const delay = notifyMs - Date.now();
+    if (delay <= 0) return; // already passed
+
+    if (timers.has(ev.id)) clearTimeout(timers.get(ev.id));
+    const tid = setTimeout(() => {
+      self.registration.showNotification(`Ophelia · ${ev.title}`, {
+        body: `${label || 'Reminder'} · ${minutesBefore === 0 ? 'Starting now' : `in ${minutesBefore} min`}`,
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        tag: `event-${ev.id}`,
+        data: { url: '/' },
+      });
+      timers.delete(ev.id);
+    }, delay);
+    timers.set(ev.id, tid);
+  }
+
+  if (type === 'cancel' && eventId) {
+    if (timers.has(eventId)) { clearTimeout(timers.get(eventId)); timers.delete(eventId); }
+  }
+
+  if (type === 'notify') {
+    // Immediate notification (day recap, partner event)
+    self.registration.showNotification(event.data.title || 'Ophelia', {
+      body: event.data.body || '',
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      tag: event.data.tag || 'ophelia',
+      data: { url: '/' },
+    });
+  }
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow(event.notification.data?.url || '/'));
+});
+
+self.addEventListener('push', event => {
+  const data = event.data?.json() || {};
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Ophelia', {
+      body: data.body || '',
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      tag: data.tag || 'ophelia-push',
+      data: { url: '/' },
+    })
   );
 });

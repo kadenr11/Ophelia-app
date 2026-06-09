@@ -226,6 +226,32 @@ function encodeShare(d) { try{return btoa(unescape(encodeURIComponent(JSON.strin
 function decodeShare(v) { try{return JSON.parse(decodeURIComponent(escape(atob(v))));}catch{return null;} }
 function dateLabel(ds)  { try{return new Date(`${ds}T12:00`).toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch{return ds;} }
 
+// ─── Notification helpers ─────────────────────────────────────────────────────
+async function requestNotifPermission() {
+  if(!('Notification' in window)) return false;
+  if(Notification.permission==='granted') return true;
+  const result = await Notification.requestPermission();
+  return result==='granted';
+}
+function getSW() {
+  if(!('serviceWorker' in navigator)) return null;
+  return navigator.serviceWorker.controller;
+}
+function scheduleEventNotif(ev, minutesBefore) {
+  const sw = getSW();
+  if(!sw||Notification.permission!=='granted') return;
+  sw.postMessage({type:'schedule',event:ev,minutesBefore,label:'Ophelia reminder'});
+}
+function cancelEventNotif(eventId) {
+  const sw = getSW();
+  if(sw) sw.postMessage({type:'cancel',eventId});
+}
+function sendImmediateNotif(title, body, tag='ophelia') {
+  const sw = getSW();
+  if(!sw||Notification.permission!=='granted') return;
+  sw.postMessage({type:'notify',title,body,tag});
+}
+
 const LS = {
   get:(k,fb=null)=>{
     try{
@@ -1849,7 +1875,10 @@ function Calendar({config,onReset}) {
   const [showSplash,setShowSplash]=useState(hasPartner&&notes.length>0);
   const [showAdmin,setShowAdmin]=useState(false);
   const [showUpgrade,setShowUpgrade]=useState(false);
+  const [notifMins,setNotifMins]=useState(()=>LS.get(`ophelia_notif_mins_${userId}`,30));
+  const [notifEnabled,setNotifEnabled]=useState(()=>Notification?.permission==='granted');
   const adminTaps=useRef(0);
+  const seenPartnerEventsRef=useRef(new Set(events.map(e=>e.id)));
   const adminTimer=useRef(null);
   function handleLogoTap(){
     adminTaps.current+=1;
@@ -1861,6 +1890,46 @@ function Calendar({config,onReset}) {
   // Persist events locally always
   useEffect(()=>{LS.set(evKey,events);},[events]);
   useEffect(()=>{LS.set(ntKey,notes);},[notes]);
+  useEffect(()=>{LS.set(`ophelia_notif_mins_${userId}`,notifMins);},[notifMins]);
+
+  // Day-of recap on first load
+  useEffect(()=>{
+    if(Notification?.permission!=='granted') return;
+    const todayEvs=events.filter(e=>e.date===todayStr).sort((a,b)=>a.time.localeCompare(b.time));
+    if(todayEvs.length===0) return;
+    const already=LS.get('ophelia_recap_shown','');
+    if(already===todayStr) return;
+    LS.set('ophelia_recap_shown',todayStr);
+    const list=todayEvs.map(e=>`${e.time} ${e.title}`).join(' · ');
+    setTimeout(()=>sendImmediateNotif(
+      `Today on Ophelia — ${todayEvs.length} event${todayEvs.length>1?'s':''}`,
+      list,'recap'
+    ),2000);
+  },[]);
+
+  // Schedule reminders for all upcoming events whenever events or notifMins changes
+  useEffect(()=>{
+    if(Notification?.permission!=='granted') return;
+    events.filter(e=>new Date(`${e.date}T${e.time}`)>new Date())
+      .forEach(e=>scheduleEventNotif(e,notifMins));
+  },[events,notifMins]);
+
+  // Detect partner-added events via Firestore (new ids not in our initial set)
+  useEffect(()=>{
+    if(!coupleId||!IS_CONFIGURED) return;
+    const userId_local=config?.user?.id;
+    events.forEach(ev=>{
+      if(!seenPartnerEventsRef.current.has(ev.id)){
+        seenPartnerEventsRef.current.add(ev.id);
+        // Only notify if the event wasn't added by us (no reliable author field yet, notify all new)
+        sendImmediateNotif(
+          `New event from ${partnerName||'your partner'}`,
+          `${ev.title} on ${ev.date} at ${ev.time}`,
+          `partner-${ev.id}`
+        );
+      }
+    });
+  },[events]);
 
   // ── Firestore real-time sync (only when Firebase configured + coupleId exists) ──
   const coupleId = config?.coupleId||null;
@@ -1966,6 +2035,27 @@ function Calendar({config,onReset}) {
                   )}
                   {config?.plan==='pro'&&<span style={{fontSize:'12px',color:T.sage,fontWeight:700}}>&#10003; Pro</span>}
                 </div>
+              </div>
+              {/* Notifications */}
+              <div style={{borderTop:`1px solid ${T.border}`,paddingTop:'16px',marginTop:'16px'}}>
+                <div style={{fontSize:'13px',fontWeight:700,color:T.text1,marginBottom:'10px'}}>Notifications</div>
+                {!notifEnabled?(
+                  <button onClick={async()=>{const ok=await requestNotifPermission();setNotifEnabled(ok);}} style={PB({padding:'8px 16px',fontSize:'12px',width:'100%'})}>
+                    Enable Notifications
+                  </button>
+                ):(
+                  <div>
+                    <div style={{fontSize:'12px',color:T.sage,fontWeight:600,marginBottom:'10px'}}>&#10003; Notifications enabled</div>
+                    <Label color={T.accent}>Remind me before events</Label>
+                    <div style={{display:'flex',gap:'8px',marginTop:'6px'}}>
+                      {[{v:15,label:'15 min'},{v:30,label:'30 min'},{v:60,label:'1 hour'}].map(opt=>(
+                        <button key={opt.v} onClick={()=>setNotifMins(opt.v)} style={{flex:1,padding:'8px 4px',border:`1.5px solid ${notifMins===opt.v?T.accent:T.border}`,borderRadius:'10px',background:notifMins===opt.v?T.accent:'transparent',color:notifMins===opt.v?'#fff':T.text2,fontSize:'12px',fontWeight:notifMins===opt.v?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",transition:'all 0.15s'}}>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2182,11 +2272,14 @@ function Calendar({config,onReset}) {
         onSave={ev=>{
           setEvents(prev=>{const ex=prev.find(i=>i.id===ev.id);return ex?prev.map(i=>i.id===ev.id?ev:i):[...prev,ev];});
           if(IS_CONFIGURED&&coupleId&&db) setDoc(doc(db,`couples/${coupleId}/events/${ev.id}`),ev).catch(()=>{});
+          cancelEventNotif(ev.id);
+          scheduleEventNotif(ev,notifMins);
           setModal(null);
         }}
         onDelete={id=>{
           setEvents(prev=>prev.filter(e=>e.id!==id));
           if(IS_CONFIGURED&&coupleId&&db) deleteDoc(doc(db,`couples/${coupleId}/events/${id}`)).catch(()=>{});
+          cancelEventNotif(id);
           setModal(null);
         }}
       />}
