@@ -316,7 +316,6 @@ const MAPS_KEY = 'YOUR_GOOGLE_MAPS_KEY'; // replace with your key to enable auto
 
 function AddressInput({value, onChange, placeholder='Enter address...',style}) {
   const [suggestions, setSuggestions] = useState([]);
-  const [showDrop,    setShowDrop]    = useState(false);
   const [gpsLoading,  setGpsLoading]  = useState(false);
   const debounce = useRef(null);
 
@@ -324,49 +323,48 @@ function AddressInput({value, onChange, placeholder='Enter address...',style}) {
     const v = e.target.value;
     onChange(v);
     clearTimeout(debounce.current);
-    if(!v||v.length<3){setSuggestions([]);return;}
-    debounce.current = setTimeout(()=>fetchSuggestions(v), 300);
+    if(!v||v.length<2){setSuggestions([]);return;}
+    debounce.current = setTimeout(()=>fetchSuggestions(v), 350);
   }
 
   async function fetchSuggestions(input) {
-    // Google Places Autocomplete — works once MAPS_KEY is set
-    if(MAPS_KEY==='YOUR_GOOGLE_MAPS_KEY'||!window.google) {
-      // Fallback: no live suggestions, plain text only
-      setSuggestions([]);
-      return;
+    // Google Places if key configured
+    if(MAPS_KEY!=='YOUR_GOOGLE_MAPS_KEY'&&window.google) {
+      try {
+        const svc = new window.google.maps.places.AutocompleteService();
+        svc.getPlacePredictions({input}, (preds, status)=>{
+          if(status==='OK'&&preds) setSuggestions(preds.map(p=>p.description));
+          else setSuggestions([]);
+        });
+        return;
+      } catch {}
     }
+    // Free fallback: OpenStreetMap Nominatim
     try {
-      const svc = new window.google.maps.places.AutocompleteService();
-      svc.getPlacePredictions({input, types:['address']}, (preds, status)=>{
-        if(status==='OK'&&preds) setSuggestions(preds.map(p=>p.description));
-        else setSuggestions([]);
-      });
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=6`,
+        {headers:{'Accept-Language':'en'}}
+      );
+      const data = await res.json();
+      setSuggestions(data.map(r=>r.display_name));
     } catch { setSuggestions([]); }
   }
 
-  function pickSuggestion(s) {
-    onChange(s);
-    setSuggestions([]);
-    setShowDrop(false);
-  }
+  function pick(s) { onChange(s); setSuggestions([]); }
 
   function useGPS() {
     if(!navigator.geolocation){alert('Location not available on this device.');return;}
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(async pos=>{
-      const {latitude:lat,longitude:lng} = pos.coords;
-      // Reverse geocode via Google if key set, otherwise show coords
-      if(MAPS_KEY!=='YOUR_GOOGLE_MAPS_KEY') {
-        try {
-          const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${MAPS_KEY}`);
-          const data = await res.json();
-          const addr = data.results?.[0]?.formatted_address;
-          if(addr) { onChange(addr); setGpsLoading(false); return; }
-        } catch {}
-      }
+      const {latitude:lat,longitude:lng}=pos.coords;
+      try {
+        const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,{headers:{'Accept-Language':'en'}});
+        const d=await res.json();
+        if(d.display_name){onChange(d.display_name);setGpsLoading(false);return;}
+      } catch {}
       onChange(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
       setGpsLoading(false);
-    }, ()=>{alert('Could not get your location. Please type it in.');setGpsLoading(false);},{timeout:8000});
+    },()=>{alert('Could not get location. Please type it in.');setGpsLoading(false);},{timeout:8000});
   }
 
   return(
@@ -375,35 +373,29 @@ function AddressInput({value, onChange, placeholder='Enter address...',style}) {
         <input
           value={value}
           onChange={handleType}
-          onFocus={()=>setShowDrop(true)}
-          onBlur={()=>setTimeout(()=>setShowDrop(false),180)}
+          onBlur={()=>setTimeout(()=>setSuggestions([]),200)}
           placeholder={placeholder}
           style={IS({flex:1,width:'auto',...(style||{})})}
+          autoComplete="off"
         />
-        <button
-          type="button"
-          onClick={useGPS}
-          title="Use my current location"
-          style={{flexShrink:0,background:'#fff',border:`1px solid ${T.border}`,borderRadius:'10px',padding:'0 12px',cursor:'pointer',color:gpsLoading?T.text4:T.sky,fontSize:'16px',display:'flex',alignItems:'center',justifyContent:'center'}}
-        >
+        <button type="button" onClick={useGPS} title="Use my current location"
+          style={{flexShrink:0,background:'#fff',border:`1px solid ${T.border}`,borderRadius:'10px',padding:'0 12px',cursor:'pointer',color:gpsLoading?T.text4:T.sky,display:'flex',alignItems:'center',justifyContent:'center'}}>
           {gpsLoading
             ? <span style={{fontSize:'11px',color:T.text4}}>...</span>
             : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" strokeDasharray="2 3"/></svg>
           }
         </button>
       </div>
-      {showDrop&&suggestions.length>0&&(
-        <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',boxShadow:'0 8px 32px rgba(0,0,0,0.12)',zIndex:9999,marginTop:'4px',overflow:'hidden'}}>
+      {suggestions.length>0&&(
+        <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:`1px solid ${T.border}`,borderRadius:'12px',boxShadow:'0 8px 32px rgba(0,0,0,0.14)',zIndex:9999,marginTop:'4px',maxHeight:'200px',overflowY:'auto'}}>
           {suggestions.map((s,i)=>(
-            <div key={i} onMouseDown={()=>pickSuggestion(s)} style={{padding:'11px 14px',fontSize:'13px',color:T.text2,borderBottom:i<suggestions.length-1?`1px solid ${T.border}`:'none',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center'}}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.text4} strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
-              {s}
+            <div key={i} onMouseDown={()=>pick(s)}
+              style={{padding:'10px 14px',fontSize:'13px',color:T.text1,cursor:'pointer',borderBottom:i<suggestions.length-1?`1px solid ${T.border}`:'none',display:'flex',gap:'8px',alignItems:'flex-start',lineHeight:1.35}}>
+              <svg style={{flexShrink:0,marginTop:'2px'}} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.text4} strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+              <span>{s}</span>
             </div>
           ))}
         </div>
-      )}
-      {MAPS_KEY==='YOUR_GOOGLE_MAPS_KEY'&&value.length===0&&(
-        <div style={{fontSize:'10px',color:T.text4,marginTop:'4px'}}>GPS works now · add Google Maps key for address suggestions</div>
       )}
     </div>
   );
@@ -729,6 +721,7 @@ function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,on
   const [tz,        setTz]        = useState(event?.tz         || tzA);
   const [recurrence,setRecurrence]= useState(event?.recurrence || 'none');
   const [location,  setLocation]  = useState(event?.location   || '');
+  const [fromAddr,  setFromAddr]  = useState(event?.fromAddr   || homeLocation || '');
   const [color,     setColor]     = useState(event?.color      || EVENT_COLORS[0].value);
   const [note,      setNote]      = useState(event?.note       || '');
 
@@ -742,7 +735,14 @@ function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,on
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',color:T.text1,marginBottom:'20px',fontWeight:600}}>{event?.id?'Edit Event':'New Event'}</div>
         <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
           <input placeholder="Event title..." value={title} onChange={e=>setTitle(e.target.value)} style={IS()} />
-          <AddressInput value={location} onChange={setLocation} placeholder="Location (optional — enables traffic alerts)" />
+          <div>
+            <Label>Event location</Label>
+            <AddressInput value={location} onChange={setLocation} placeholder="School, work, venue address..." />
+          </div>
+          <div>
+            <Label>Leaving from (your address)</Label>
+            <AddressInput value={fromAddr} onChange={setFromAddr} placeholder="Your home, office, current location..." />
+          </div>
           <div style={{display:'flex',gap:'10px'}}>
             <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={IS({flex:1,width:'auto'})} />
             <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={IS({flex:1,width:'auto'})} />
@@ -768,7 +768,7 @@ function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,on
 
           {converted&&<div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'10px',padding:'10px 14px',fontSize:'13px',color:T.text2}}>&#8758; For <strong>{otherLabel}</strong>, this is <span style={{color:T.accent,fontWeight:700}}>{converted}</span></div>}
 
-          {location&&homeLocation&&date&&time&&<TrafficAlert event={{date,time,location}} homeLocation={homeLocation}/>}
+          {location&&(fromAddr||homeLocation)&&date&&time&&<TrafficAlert event={{date,time,location}} homeLocation={fromAddr||homeLocation}/>}
 
           <textarea placeholder="Notes (optional)..." value={note} onChange={e=>setNote(e.target.value)} rows={2} style={IS({resize:'none'})}/>
 
@@ -790,7 +790,7 @@ function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,on
           {event?.id&&<button onClick={()=>onDelete(event.id)} style={DB}>Delete</button>}
           <div style={{flex:1}}/>
           <button onClick={onClose} style={GB()}>Cancel</button>
-          <button onClick={()=>{if(!title||!date)return;if(plan==='free'&&!event?.id&&eventCount>=10)return;onSave({id:event?.id||Date.now(),title,date,time,tz,recurrence,location,color,note});}} style={PB({opacity:plan==='free'&&!event?.id&&eventCount>=10?0.4:1})}>Save</button>
+          <button onClick={()=>{if(!title||!date)return;if(plan==='free'&&!event?.id&&eventCount>=10)return;onSave({id:event?.id||Date.now(),title,date,time,tz,recurrence,location,fromAddr,color,note});}} style={PB({opacity:plan==='free'&&!event?.id&&eventCount>=10?0.4:1})}>Save</button>
 
         </div>
       </Card>
@@ -1836,7 +1836,7 @@ function Calendar({config,onReset}) {
   return(
     <>
       <div style={{minHeight:'100vh',background:T.bg,fontFamily:"'DM Sans',sans-serif",color:T.text1}}>
-        <div className="cal-max" style={{maxWidth:'840px',margin:'0 auto',padding:'clamp(16px,4vw,28px) clamp(12px,4vw,18px) 110px'}}>
+        <div className="cal-max" style={{maxWidth:'840px',margin:'0 auto',padding:'clamp(16px,4vw,28px) clamp(12px,4vw,18px) 140px'}}>
 
           {/* Header */}
           <div style={{textAlign:'center',marginBottom:'28px'}}>
