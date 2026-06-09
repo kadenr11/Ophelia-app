@@ -2093,11 +2093,7 @@ class ErrorBoundary extends React.Component {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 function OpheliaApp() {
-  const [screen, setScreen] = useState(()=>{
-    const cfg=LS.get('ophelia_config',null);
-    if(!cfg) return 'auth';
-    return 'calendar';
-  });
+  const [screen, setScreen] = useState('auth');
   const [config,setConfig]=useState(()=>LS.get('ophelia_config',null));
   const [inviteData,setInviteData]=useState(null);
 
@@ -2113,10 +2109,17 @@ function OpheliaApp() {
   },[]);
 
   function handleAuth(user) {
-    setScreen('onboarding');
     LS.set('ophelia_auth_user',user);
     const existing=LS.get('ophelia_users',[]);
     if(!existing.find(u=>u.id===user.id)) LS.set('ophelia_users',[...existing,user]);
+    // If user already has a saved config, go straight to their calendar
+    const savedCfg=LS.get('ophelia_config',null);
+    if(savedCfg && savedCfg.user?.email===user.email) {
+      setConfig(savedCfg);
+      setScreen('calendar');
+    } else {
+      setScreen('onboarding');
+    }
   }
 
   function handleInviteAccept(user,inv) {
