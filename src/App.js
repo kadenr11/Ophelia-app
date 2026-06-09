@@ -431,7 +431,7 @@ function AuthScreen({onComplete}) {
 
   function makeLocalUser(fbUser, extra={}) {
     const betaValid = checkBetaCode(promo);
-    const stored = LS.get('ophelia_users',[]);
+    const stored = LS.get('ophelia_users',[]).filter?.(()=>true)??[];
     const existing = stored.find(u=>u.id===fbUser.uid||u.email===fbUser.email);
     const u = existing || {
       id: fbUser.uid || Date.now(),
@@ -486,7 +486,7 @@ function AuthScreen({onComplete}) {
 
     // ── Local fallback (Firebase not yet configured) ──
     const key = email.trim().toLowerCase();
-    const stored = LS.get('ophelia_users',[]);
+    const stored = LS.get('ophelia_users',[]).filter?.(()=>true)??[];
     const existing = stored.find(u=>u.email.toLowerCase()===key);
     if(mode==='signin') {
       if(!existing) {
@@ -1563,7 +1563,7 @@ function Onboarding({onComplete}) {
 // ─── BottomNav ────────────────────────────────────────────────────────────────
 function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEvent,onReset,plan}) {
   const [open,setOpen]=useState(false);
-  const allUpcoming=[...events]
+  const allUpcoming=[...(Array.isArray(events)?events:[])]
     .filter(e=>e.date>=todayStr)
     .sort((a,b)=>`${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
 
@@ -1731,8 +1731,8 @@ function Calendar({config,onReset}) {
   const [tzB,setTzB]=useState(initB||'Australia/Melbourne');
   const [labelA,setLabelA]=useState(name||'You');
   const [labelB,setLabelB]=useState(partnerName||'Them');
-  const [events,setEvents]=useState(()=>LS.get(evKey,[]));
-  const [notes,setNotes]=useState(()=>LS.get(ntKey,[]));
+  const [events,setEvents]=useState(()=>{const v=LS.get(evKey,[]);return Array.isArray(v)?v:[];});
+  const [notes,setNotes]=useState(()=>{const v=LS.get(ntKey,[]);return Array.isArray(v)?v:[];});
   const [calView,setCalView]=useState('month'); // 'day'|'week'|'month'|'year'
   const [viewMonth,setViewMonth]=useState(today.getMonth());
   const [viewYear,setViewYear]=useState(today.getFullYear());
@@ -1769,7 +1769,7 @@ function Calendar({config,onReset}) {
     const ds=`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     return events.filter(e=>e.date===ds);
   };
-  const upcoming=[...events].filter(e=>e.date>=todayStr).sort((a,b)=>`${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).slice(0,5);
+  const upcoming=[...(Array.isArray(events)?events:[])].filter(e=>e.date>=todayStr).sort((a,b)=>`${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).slice(0,5);
 
   const prevMonth=()=>{setSelectedDay(null);if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else setViewMonth(m=>m-1);};
   const nextMonth=()=>{setSelectedDay(null);if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else setViewMonth(m=>m+1);};
