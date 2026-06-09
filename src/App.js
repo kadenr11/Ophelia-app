@@ -291,7 +291,7 @@ select option{background:#fff;color:#1a1208;}
 .modal-card{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;max-height:88vh;}
 body.modal-open{overflow:hidden;}
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:9000;}
-.page-scroll{padding-bottom:220px!important;}
+.page-scroll{padding-bottom:260px!important;}
 
 /* ── Mobile: sheet slides up from bottom ── */
 @media(max-width:600px){
@@ -2341,7 +2341,8 @@ function Calendar({config,onReset}) {
 
           {/* New event CTA */}
           {!selectedDay&&<div style={{textAlign:'center',marginTop:'12px'}}><button onClick={()=>setModal({})} style={PB({padding:'13px 40px',fontSize:'15px',borderRadius:'40px',letterSpacing:'0.06em',boxShadow:'0 6px 24px rgba(181,99,30,0.3)'})}>&#43;&ensp;New Event</button></div>}
-          <div style={{height:'80px'}}/>
+          {/* Spacer so content is never hidden behind fixed nav */}
+          <div style={{height:'240px'}}/>
         </div>
       </div>
 
