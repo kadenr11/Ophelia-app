@@ -155,7 +155,8 @@ const EVENT_COLORS = [
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-const RECURRENCE_OPTIONS = ['none','daily','weekly','bi-weekly','monthly','yearly'];
+const RECURRENCE_OPTIONS = ['none','daily','weekdays','weekends','weekly','bi-weekly','monthly','yearly'];
+const RECURRENCE_LABELS  = {none:'None',daily:'Daily',weekdays:'Every Weekday (Mon–Fri)',weekends:'Weekends (Sat–Sun)',weekly:'Weekly','bi-weekly':'Every 2 Weeks',monthly:'Monthly',yearly:'Yearly'};
 
 const USER_TYPES = [
   { id:'couple',   icon:'◇', title:'Long-Distance Couple',  accent:T.rose,     desc:'Stay close across time zones.',    features:['Dual clocks','Shared calendar','Love notes','Gifts','Travel mode'] },
@@ -675,7 +676,7 @@ function EventCard({ev,tzA,tzB,labelA,labelB,onClick}) {
           {tB&&<><span style={{color:T.border2}}>&#9670;</span><span><span style={{color:T.text4}}>{labelB} </span><span style={{color:T.lavender,fontWeight:600}}>{tB}</span></span></>}
         </div>
         {ev.location&&<div style={{fontSize:'11px',color:T.sky,marginTop:'3px'}}>&#9671; {ev.location}</div>}
-        {ev.recurrence&&ev.recurrence!=='none'&&<div style={{fontSize:'10px',color:T.sage,marginTop:'3px',fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase'}}>Every {ev.recurrence}</div>}
+        {ev.recurrence&&ev.recurrence!=='none'&&<div style={{fontSize:'10px',color:T.sage,marginTop:'3px',fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase'}}>{RECURRENCE_LABELS[ev.recurrence]||ev.recurrence}</div>}
         {ev.note&&<div style={{fontSize:'11px',color:T.text3,marginTop:'3px',fontStyle:'italic'}}>{ev.note}</div>}
       </div>
       <div style={{fontSize:'11px',color:T.text4,whiteSpace:'nowrap',paddingTop:'2px'}}>{dateLabel(ev.date)}</div>
@@ -751,7 +752,7 @@ function EventModal({event,tzA,tzB,labelA,labelB,homeLocation,plan,eventCount,on
           <div>
             <Label>Repeat</Label>
             <select value={recurrence} onChange={e=>setRecurrence(e.target.value)} style={IS()}>
-              {RECURRENCE_OPTIONS.map(r=><option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)}
+              {RECURRENCE_OPTIONS.map(r=><option key={r} value={r}>{RECURRENCE_LABELS[r]||r}</option>)}
             </select>
           </div>
 
@@ -1585,7 +1586,7 @@ function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEven
   const isTomorrow=ds=>{const t=new Date();t.setDate(t.getDate()+1);const s=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;return ds===s;};
   const dayLabel=ds=>{if(isToday(ds))return'Today';if(isTomorrow(ds))return'Tomorrow';return dateLabel(ds);};
 
-  const RECUR_ICONS={'daily':'Daily','weekly':'Weekly','bi-weekly':'Every 2 wks','monthly':'Monthly','yearly':'Yearly'};
+  const RECUR_ICONS={'daily':'Daily','weekdays':'Weekdays','weekends':'Weekends','weekly':'Weekly','bi-weekly':'Every 2 wks','monthly':'Monthly','yearly':'Yearly'};
 
   return(
     <>
@@ -1731,6 +1732,40 @@ function BottomNav({events,tzA,tzB,labelA,labelB,todayStr,onEventClick,onNewEven
   );
 }
 
+// ─── UpgradeModal ─────────────────────────────────────────────────────────────
+function UpgradeModal({currentPlan,onClose,onSuccess}) {
+  const options=PLANS.filter(p=>p.id!=='free'&&(currentPlan==='free'||p.id==='pro'));
+  const [selected,setSelected]=useState(options[0]?.id||'plus');
+  const [paying,setPaying]=useState(false);
+  if(paying) return <PaymentModal plan={selected} onClose={()=>setPaying(false)} onSuccess={onSuccess}/>;
+  return(
+    <Overlay onClose={onClose}>
+      <Card style={{maxWidth:'420px'}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'24px',fontWeight:400,color:T.text1,marginBottom:'6px'}}>Upgrade Ophelia</div>
+        <div style={{fontSize:'13px',color:T.text3,marginBottom:'20px'}}>Unlock more features for your calendar.</div>
+        <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'22px'}}>
+          {options.map(p=>(
+            <div key={p.id} onClick={()=>setSelected(p.id)} style={{background:selected===p.id?`${T.accent}0e`:'#fff',border:`1.5px solid ${selected===p.id?T.accent:T.border}`,borderRadius:'14px',padding:'16px 18px',cursor:'pointer',position:'relative'}}>
+              {p.badge&&<div style={{position:'absolute',top:'-10px',left:'14px',background:T.accent,color:'#fff',fontSize:'10px',fontWeight:700,padding:'2px 10px',borderRadius:'20px'}}>{p.badge}</div>}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div style={{flex:1,marginRight:'10px'}}>
+                  <div style={{fontSize:'14px',fontWeight:700,color:T.text1,marginBottom:'4px'}}>{p.label}</div>
+                  <div style={{fontSize:'12px',color:T.text3,lineHeight:1.5}}>{p.sub}</div>
+                </div>
+                <div style={{fontSize:'14px',fontWeight:700,color:selected===p.id?T.accent:T.text3,flexShrink:0}}>{p.price}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:'flex',gap:'10px'}}>
+          <button onClick={onClose} style={GB()}>Cancel</button>
+          <button onClick={()=>setPaying(true)} style={PB({flex:1,textAlign:'center'})}>Continue to Payment</button>
+        </div>
+      </Card>
+    </Overlay>
+  );
+}
+
 // ─── TravelPicker — searchable city/timezone picker ───────────────────────────
 function TravelPicker({value,onChange}) {
   const [query,setQuery]=useState('');
@@ -1804,6 +1839,7 @@ function Calendar({config,onReset}) {
   const [showNotes,setShowNotes]=useState(false);
   const [showSplash,setShowSplash]=useState(hasPartner&&notes.length>0);
   const [showAdmin,setShowAdmin]=useState(false);
+  const [showUpgrade,setShowUpgrade]=useState(false);
   const adminTaps=useRef(0);
   const adminTimer=useRef(null);
   function handleLogoTap(){
@@ -1859,6 +1895,17 @@ function Calendar({config,onReset}) {
           )}
           {isLocal&&<div style={{marginBottom:'22px'}}><Clock tz={tzA} accent={T.sage} label={`${labelA} · ${TIMEZONES.find(t=>t.value===tzA)?.label||tzA}`}/></div>}
 
+          {/* Upgrade nudge for free users */}
+          {(config?.plan==='free')&&events.length>=7&&(
+            <div onClick={()=>setShowUpgrade(true)} style={{background:`linear-gradient(135deg,${T.accent}18,${T.lavender}12)`,border:`1px solid ${T.accent}40`,borderRadius:'14px',padding:'12px 16px',marginBottom:'16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <div style={{fontSize:'13px',fontWeight:700,color:T.accent}}>You're almost at your event limit</div>
+                <div style={{fontSize:'12px',color:T.text3,marginTop:'2px'}}>{10-events.length} event{10-events.length===1?'':' slots'} remaining on Free — upgrade for unlimited</div>
+              </div>
+              <div style={{background:T.accent,color:'#fff',borderRadius:'20px',padding:'6px 14px',fontSize:'12px',fontWeight:700,flexShrink:0,marginLeft:'12px'}}>Upgrade</div>
+            </div>
+          )}
+
           {/* Action pills */}
           <div className="pill-row" style={{display:'flex',gap:'7px',justifyContent:'center',flexWrap:'wrap',marginBottom:'22px'}}>
             <button style={SB(panel==='settings')} onClick={()=>setPanel(p=>p==='settings'?null:'settings')}>&#9965;&ensp;Settings</button>
@@ -1873,7 +1920,7 @@ function Calendar({config,onReset}) {
           {panel==='settings'&&(
             <div style={{background:'#fff',border:`1px solid ${T.border}`,borderRadius:'16px',padding:'20px 22px',marginBottom:'20px',boxShadow:'0 2px 12px rgba(0,0,0,0.06)'}}>
               <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'18px',color:T.text1,fontWeight:600,marginBottom:'16px'}}>Settings</div>
-              <div style={{display:'grid',gridTemplateColumns:isLocal?'1fr':'1fr 1fr',gap:'14px'}}>
+              <div style={{display:'grid',gridTemplateColumns:isLocal?'1fr':'1fr 1fr',gap:'14px',marginBottom:'18px'}}>
                 {[{label:'Your Name',value:labelA,set:setLabelA,tz:tzA,setTz:setTzA,color:T.accent},...(!isLocal?[{label:hasPartner?'Partner':'Contact',value:labelB,set:setLabelB,tz:tzB,setTz:setTzB,color:accentB}]:[])].map((item,i)=>(
                   <div key={i}>
                     <Label color={item.color}>{item.label}</Label>
@@ -1881,6 +1928,21 @@ function Calendar({config,onReset}) {
                     <TzSelect value={item.tz} onChange={e=>item.setTz(e.target.value)}/>
                   </div>
                 ))}
+              </div>
+              {/* Membership */}
+              <div style={{borderTop:`1px solid ${T.border}`,paddingTop:'16px'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div>
+                    <div style={{fontSize:'13px',fontWeight:700,color:T.text1}}>Membership</div>
+                    <div style={{fontSize:'12px',color:T.text3,marginTop:'2px',textTransform:'capitalize'}}>{config?.plan||'free'} plan{config?.plan==='free'?' · 10 event limit':config?.plan==='plus'?' · Unlimited events':' · All features'}</div>
+                  </div>
+                  {(config?.plan==='free'||config?.plan==='plus')&&(
+                    <button onClick={()=>setShowUpgrade(true)} style={PB({padding:'8px 16px',fontSize:'12px'})}>
+                      {config?.plan==='free'?'Upgrade':'Go Pro'}
+                    </button>
+                  )}
+                  {config?.plan==='pro'&&<span style={{fontSize:'12px',color:T.sage,fontWeight:700}}>&#10003; Pro</span>}
+                </div>
               </div>
             </div>
           )}
@@ -2100,6 +2162,7 @@ function Calendar({config,onReset}) {
       {showNotes&&<NotesWall notes={notes} labelA={labelA} labelB={labelB} onClose={()=>setShowNotes(false)} onAdd={note=>setNotes(prev=>[...prev,note])} onDelete={id=>setNotes(prev=>prev.filter(n=>n.id!==id))}/>}
       {showSplash&&<LoveNoteSplash notes={notes} labelA={labelA} labelB={labelB} onClose={()=>setShowSplash(false)}/>}
       {showAdmin&&<AdminPanel onClose={()=>setShowAdmin(false)}/>}
+      {showUpgrade&&<UpgradeModal currentPlan={config?.plan||'free'} onClose={()=>setShowUpgrade(false)} onSuccess={p=>{const u=LS.get('ophelia_auth_user',null);if(u){const updated={...u,plan:p};LS.set('ophelia_auth_user',updated);}const cfg={...config,plan:p,user:{...config.user,plan:p}};LS.set('ophelia_config',cfg);setShowUpgrade(false);window.location.reload();}}/>}
 
       {/* Bottom nav bar — hidden when any modal is open */}
       {!modal&&!showGift&&!showNotes&&!showAdmin&&panel!=='share'&&panel!=='meeting'&&(
