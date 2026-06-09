@@ -245,9 +245,15 @@ input::placeholder,textarea::placeholder{color:#b0988a;}
 select option{background:#fff;color:#1a1208;}
 .day-cell:hover{background:#ece4d6!important;}
 .lift:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,0.1)!important;transition:transform 0.18s,box-shadow 0.18s;}
+/* ── Overlay locks background, card scrolls ── */
+.overlay-inner{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;}
+.modal-card{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;max-height:88vh;}
+body.modal-open{overflow:hidden;}
+
+/* ── Mobile: sheet slides up from bottom ── */
 @media(max-width:600px){
-  .modal-card{max-width:100%!important;border-radius:18px 18px 0 0!important;position:fixed!important;bottom:0!important;left:0!important;right:0!important;max-height:92vh!important;}
   .overlay-inner{align-items:flex-end!important;padding:0!important;}
+  .modal-card{max-width:100%!important;border-radius:20px 20px 0 0!important;max-height:92vh!important;padding-bottom:env(safe-area-inset-bottom,16px)!important;}
   .clock-row{flex-direction:column!important;}
   .pill-row{gap:5px!important;}
   .cal-grid-cell{min-height:40px!important;}
@@ -257,9 +263,6 @@ select option{background:#fff;color:#1a1208;}
 @media(min-width:601px) and (max-width:900px){
   .cal-max{max-width:700px!important;}
 }
-body.modal-open{overflow:hidden;position:fixed;width:100%;}
-.overlay-inner{overflow-y:auto;-webkit-overflow-scrolling:touch;}
-.modal-card{overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:90vh;}
 `;
 
 // ─── Small reusable atoms ────────────────────────────────────────────────────
@@ -268,17 +271,30 @@ const Label = ({children,color=T.text3})=>(
 );
 function Overlay({onClose,zIndex=200,children}) {
   useEffect(()=>{
-    document.body.classList.add('modal-open');
-    return()=>document.body.classList.remove('modal-open');
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return()=>{ document.body.style.overflow = prev; };
   },[]);
+  // Stop touchmove on backdrop so page behind doesn't scroll
+  function blockTouch(e){ e.preventDefault(); }
   return(
-    <div className="overlay-inner" style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.45)',display:'flex',alignItems:'flex-start',justifyContent:'center',zIndex,padding:'20px',backdropFilter:'blur(4px)'}} onClick={onClose}>
+    <div
+      className="overlay-inner"
+      style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex,padding:'16px',backdropFilter:'blur(4px)'}}
+      onClick={onClose}
+      onTouchMove={blockTouch}
+    >
       {children}
     </div>
   );
 }
 const Card = ({children,style={}})=>(
-  <div className="modal-card" onClick={e=>e.stopPropagation()} style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'clamp(18px,4vw,28px)',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',marginTop:'auto',marginBottom:'auto',...style}}>{children}</div>
+  <div
+    className="modal-card"
+    onClick={e=>e.stopPropagation()}
+    onTouchMove={e=>e.stopPropagation()}
+    style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'clamp(18px,4vw,28px)',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',...style}}
+  >{children}</div>
 );
 
 // ─── AddressInput — autocomplete + GPS ───────────────────────────────────────
@@ -807,7 +823,7 @@ function NotesWall({notes,labelA,labelB,onClose,onAdd,onDelete}) {
   function submit(){if(!text.trim())return;onAdd({id:Date.now(),text:text.trim(),from,date:new Date().toISOString().split('T')[0]});setText('');}
   return (
     <Overlay onClose={onClose}>
-      <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',width:'100%',maxWidth:'480px',maxHeight:'82vh',display:'flex',flexDirection:'column',boxShadow:'0 24px 80px rgba(0,0,0,0.2)'}} onClick={e=>e.stopPropagation()}>
+      <div className="modal-card" style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',width:'100%',maxWidth:'480px',maxHeight:'82vh',display:'flex',flexDirection:'column',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',overflow:'hidden'}} onClick={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
         <div style={{padding:'22px 24px 16px',borderBottom:`1px solid ${T.border}`,display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
           <div>
             <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'22px',fontWeight:600,color:T.text1}}>Love Notes</div>
@@ -857,7 +873,7 @@ function LoveNoteSplash({notes,labelA,labelB,onClose}) {
   if(!latest)return null;
   const fromName=latest.from==='A'?labelA:labelB,fromColor=latest.from==='A'?T.accent:T.rose;
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:'24px',backdropFilter:'blur(6px)'}} onClick={onClose}>
+    <div style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:'24px',backdropFilter:'blur(6px)',overflow:'auto'}} onClick={onClose} onTouchMove={e=>e.preventDefault()}>
       <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'24px',padding:'40px 36px',width:'100%',maxWidth:'400px',textAlign:'center',boxShadow:'0 32px 80px rgba(0,0,0,0.2)'}} onClick={e=>e.stopPropagation()}>
         <div style={{fontSize:'32px',color:T.rose,marginBottom:'16px'}}>&#9825;</div>
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'13px',letterSpacing:'0.25em',color:T.text4,textTransform:'uppercase',marginBottom:'6px'}}>A note from</div>
@@ -1101,7 +1117,7 @@ function AdminPanel({onClose}) {
 
   if(!authed){
     return(
-      <div style={{position:'fixed',inset:0,background:'rgba(10,20,40,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:500,backdropFilter:'blur(6px)'}} onClick={onClose}>
+      <div style={{position:'fixed',inset:0,background:'rgba(10,20,40,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:500,backdropFilter:'blur(6px)',overflow:'auto'}} onClick={onClose} onTouchMove={e=>e.preventDefault()}>
         <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'36px',width:'100%',maxWidth:'360px',textAlign:'center',boxShadow:'0 32px 80px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
           <div style={{fontSize:'11px',letterSpacing:'0.3em',color:T.admin,textTransform:'uppercase',fontWeight:700,marginBottom:'8px'}}>Admin Access</div>
           <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'26px',color:T.text1,fontWeight:600,marginBottom:'24px'}}>Ophelia Admin</div>
@@ -1117,7 +1133,7 @@ function AdminPanel({onClose}) {
   const TABS=[{id:'overview',label:'Overview'},{id:'users',label:'Users'},{id:'affiliate',label:'Affiliate Pkgs'},{id:'gifts',label:'Gift Catalog'},{id:'payments',label:'Payments'}];
 
   return(
-    <div style={{position:'fixed',inset:0,background:'rgba(10,20,40,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:500,backdropFilter:'blur(4px)',padding:'16px'}} onClick={onClose}>
+    <div style={{position:'fixed',inset:0,background:'rgba(10,20,40,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:500,backdropFilter:'blur(4px)',padding:'16px',overflow:'auto'}} onClick={onClose} onTouchMove={e=>e.preventDefault()}>
       <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',width:'100%',maxWidth:'740px',maxHeight:'90vh',display:'flex',flexDirection:'column',boxShadow:'0 32px 80px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'20px 24px 16px',borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
           <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
