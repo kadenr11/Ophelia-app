@@ -1119,7 +1119,7 @@ function PaymentModal({plan,onSuccess,onClose}) {
             </div>
             {err&&<div style={{fontSize:'12px',color:T.danger,background:'#fdf0f0',border:'1px solid #e0b0b0',borderRadius:'8px',padding:'8px 12px'}}>{err}</div>}
             <button type="submit" disabled={loading} style={PB({padding:'13px',textAlign:'center',borderRadius:'12px',opacity:loading?0.6:1})}>
-              {loading?'Processing...`':`Pay ${planInfo?.price} &#8594;`}
+              {loading?'Processing...':(`Pay ${planInfo?.price}`)}
             </button>
           </form>
         )}
