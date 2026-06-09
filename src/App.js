@@ -1868,8 +1868,8 @@ function Calendar({config,onReset}) {
   const [selectedDay,setSelectedDay]=useState(null);
   const [modal,setModal]=useState(null);
   const [panel,setPanel]=useState(null);
-  const [travelMode,setTravelMode]=useState(false);
-  const [travelTz,setTravelTz]=useState('America/New_York');
+  const [travelMode,setTravelMode]=useState(()=>LS.get(`ophelia_travel_mode_${userId}`,false));
+  const [travelTz,setTravelTz]=useState(()=>LS.get(`ophelia_travel_tz_${userId}`,'America/New_York'));
   const [showGift,setShowGift]=useState(false);
   const [showNotes,setShowNotes]=useState(false);
   const [showSplash,setShowSplash]=useState(hasPartner&&notes.length>0);
@@ -1891,6 +1891,8 @@ function Calendar({config,onReset}) {
   useEffect(()=>{LS.set(evKey,events);},[events]);
   useEffect(()=>{LS.set(ntKey,notes);},[notes]);
   useEffect(()=>{LS.set(`ophelia_notif_mins_${userId}`,notifMins);},[notifMins]);
+  useEffect(()=>{LS.set(`ophelia_travel_mode_${userId}`,travelMode);},[travelMode]);
+  useEffect(()=>{LS.set(`ophelia_travel_tz_${userId}`,travelTz);},[travelTz]);
 
   // Day-of recap on first load
   useEffect(()=>{
