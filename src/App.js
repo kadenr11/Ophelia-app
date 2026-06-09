@@ -265,7 +265,7 @@ body.modal-open{overflow:hidden;}
 /* ── Mobile: sheet slides up from bottom ── */
 @media(max-width:600px){
   .overlay-inner{align-items:flex-end!important;padding:0!important;}
-  .modal-card{max-width:100%!important;border-radius:20px 20px 0 0!important;max-height:92vh!important;padding-bottom:env(safe-area-inset-bottom,16px)!important;}
+  .modal-card{max-width:100%!important;border-radius:20px 20px 0 0!important;max-height:92vh!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior:contain!important;padding-bottom:env(safe-area-inset-bottom,16px)!important;}
   .clock-row{flex-direction:column!important;}
   .pill-row{gap:5px!important;}
   .cal-grid-cell{min-height:40px!important;}
@@ -285,16 +285,19 @@ function Overlay({onClose,zIndex=200,children}) {
   useEffect(()=>{
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return()=>{ document.body.style.overflow = prev; };
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    return()=>{
+      document.body.style.overflow = prev;
+      document.body.style.position = '';
+      document.body.style.width = '';
+    };
   },[]);
-  // Stop touchmove on backdrop so page behind doesn't scroll
-  function blockTouch(e){ e.preventDefault(); }
   return(
     <div
       className="overlay-inner"
       style={{position:'fixed',inset:0,background:'rgba(26,18,8,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex,padding:'16px',backdropFilter:'blur(4px)'}}
       onClick={onClose}
-      onTouchMove={blockTouch}
     >
       {children}
     </div>
@@ -304,8 +307,7 @@ const Card = ({children,style={}})=>(
   <div
     className="modal-card"
     onClick={e=>e.stopPropagation()}
-    onTouchMove={e=>e.stopPropagation()}
-    style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'clamp(18px,4vw,28px)',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',...style}}
+    style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:'22px',padding:'clamp(18px,4vw,28px)',width:'100%',boxShadow:'0 24px 80px rgba(0,0,0,0.2)',overflowY:'auto',WebkitOverflowScrolling:'touch',...style}}
   >{children}</div>
 );
 
