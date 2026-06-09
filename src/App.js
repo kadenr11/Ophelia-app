@@ -346,7 +346,7 @@ function AuthScreen({onComplete}) {
       <div style={{maxWidth:'400px',width:'100%'}}>
         <div style={{textAlign:'center',marginBottom:'32px'}}>
           <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(48px,12vw,72px)',fontWeight:300,color:T.text1,lineHeight:0.9,letterSpacing:'-0.02em',marginBottom:'8px'}}>Ophelia</h1>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'16px',color:T.text3,fontStyle:'italic'}}>{mode==='signup'?'Create your account':'Welcome back'}</div>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'16px',color:T.text3,fontStyle:'italic'}}>{mode==='signup'?'Create your account':'your everyday calendar'}</div>
         </div>
 
         <div style={{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'20px'}}>
