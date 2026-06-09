@@ -1964,7 +1964,7 @@ function Calendar({config,onReset}) {
   return(
     <>
       <div style={{minHeight:'100vh',background:T.bg,fontFamily:"'DM Sans',sans-serif",color:T.text1}}>
-        <div className="cal-max" style={{maxWidth:'840px',margin:'0 auto',padding:'clamp(16px,4vw,28px) clamp(12px,4vw,18px) 140px'}}>
+        <div className="cal-max" style={{maxWidth:'840px',margin:'0 auto',padding:'clamp(16px,4vw,28px) clamp(12px,4vw,18px) calc(160px + env(safe-area-inset-bottom, 20px))'}}>
 
           {/* Header */}
           <div style={{textAlign:'center',marginBottom:'28px'}}>
